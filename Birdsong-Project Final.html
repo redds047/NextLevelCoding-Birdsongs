@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Field Notes — Birdsong</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Sorts+Mill+Goudy:ital@0;1&family=Noto+Music&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#1c2633; --soft:rgba(28,38,51,.6); --serif:"Cormorant Garamond",Georgia,serif; --mono:"Sorts Mill Goudy",Georgia,serif; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#b9d2e8;color:var(--ink);font-family:var(--serif)}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #sky{z-index:0} #memory{z-index:1} #trail{z-index:1} #flock{z-index:1}
+  .screen{position:fixed;inset:0;z-index:2;transition:opacity 1.2s ease}
+  .hidden{opacity:0;pointer-events:none}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+  /* 1 — sound on */
+  #intro{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-align:center}
+  #intro .kick{font-family:var(--mono);font-size:1rem;color:var(--soft);letter-spacing:.02em}
+  #intro .title{font-weight:400;font-size:clamp(2.2rem,4vw,3.4rem);line-height:1;letter-spacing:-.01em;margin-top:.7rem}
+  #intro .desc{font-family:var(--mono);font-size:1.05rem;color:var(--soft);margin-top:1.1rem}
+  #intro .go{display:flex;flex-direction:column;align-items:center;gap:1.2rem;margin-top:1.5rem}
+  #intro .sound{display:flex;align-items:center;gap:.7rem}
+  #intro .sound #enter{font:inherit;color:inherit;padding:0;border:none;background:none;cursor:pointer}
+  #intro .sound #enter .arr{display:inline-block;font-style:normal;margin-left:.3rem;transition:transform .3s}
+  #intro .sound #enter:hover .arr{transform:translateX(6px)}
+  .speaker{width:34px;height:34px}
+  .speaker .w1,.speaker .w2,.speaker .w3{animation:wave 2.4s ease-in-out infinite}
+  .speaker .w2{animation-delay:.2s} .speaker .w3{animation-delay:.4s}
+  @keyframes wave{0%,100%{opacity:.25}40%{opacity:1}}
+  #intro .line{font-style:italic;font-size:clamp(1.3rem,2vw,1.6rem);font-weight:400}
+  #intro .sub{font-family:var(--mono);font-size:0.85rem;letter-spacing:.01em;color:var(--soft)}
+  #enter{font-family:var(--mono);font-size:1.01rem;letter-spacing:.01em;padding:.9rem 1.9rem;
+    border:1px solid var(--ink);border-radius:999px;background:rgba(255,255,255,.18);backdrop-filter:blur(4px);transition:background .3s,color .3s}
+  #enter:hover{background:var(--ink);color:#e9f1f7}
+
+  /* 2 — murmuration */
+  #home{pointer-events:none}
+  #home header{position:absolute;top:2rem;left:2.4rem}
+  #home h1{font-weight:400;font-size:clamp(1.5rem,2.3vw,2rem)}
+  #home h1 em{color:var(--soft)}
+  #cta{position:absolute;left:2.4rem;bottom:2.2rem}
+  #cta .big{font-style:italic;font-size:clamp(1.25rem,1.8vw,1.6rem)}
+  #cta .small{font-family:var(--mono);font-size:0.78rem;letter-spacing:.01em;color:var(--soft);margin-top:.5rem}
+  #pitch{position:absolute;right:5.2rem;font-family:var(--mono);font-size:0.75rem;letter-spacing:.01em;color:var(--soft)}
+  #pitch .rail{position:absolute;left:0;top:0;bottom:0;width:1px;background:linear-gradient(var(--ink),rgba(28,38,51,.15))}
+  #pitch .cap{position:absolute;left:-.1rem;transform:translateX(-50%);white-space:nowrap;color:var(--ink)}
+  #pitch .tick{position:absolute;left:0;display:flex;white-space:nowrap;align-items:center;gap:.5rem;transform:translateY(-50%)}
+  #pitch .tick::before{content:"";width:7px;height:1px;background:var(--ink);opacity:.6}
+  #pitch .arrow{position:absolute;left:-3.5px;top:-6px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid var(--ink)}
+  #label{position:fixed;z-index:3;pointer-events:none;transform:translate(-50%,-100%);text-align:center;opacity:0;transition:opacity .35s;white-space:nowrap;padding:.45rem .95rem .4rem;border-radius:8px;background:#bfd7ec;border:1px solid #a9c8e3;line-height:1.15}
+  #label .n{font-size:1.3rem;font-style:italic;line-height:1.05}
+  #label .d{font-family:var(--mono);font-size:0.75rem;letter-spacing:.01em;color:var(--ink);margin-top:.15rem;line-height:1.2}
+  #label .m{font-family:var(--mono);font-size:0.73rem;letter-spacing:.01em;color:var(--soft);margin-top:.1rem;line-height:1.2}
+  #flock,#trail{transition:opacity .9s ease}
+  #stage{z-index:3;opacity:0;transition:opacity .9s ease;pointer-events:none}
+  #veil{position:fixed;inset:0;z-index:2;background:rgba(244,246,247,.5);opacity:0;transition:opacity .9s ease;pointer-events:none}
+  body.listening #veil,body.listening #stage{opacity:1}
+  body.listening #flock,body.listening #trail{opacity:0}
+  #listen{z-index:4;pointer-events:none}
+  #listen.on{pointer-events:auto}
+  /* left: everything about the sound */
+  #listen .back{position:absolute;top:2.2rem;left:2.6rem}
+  /* header: small profile drawing beside the name */
+  #listen .head2{position:absolute;left:2.6rem;top:5.4rem;display:flex;align-items:center;gap:1.1rem}
+  #listen .head2 h2{font-weight:400;font-size:clamp(2.2rem,3.6vw,3.2rem);line-height:1;letter-spacing:-.01em}
+  #listen .head2 .latin{font-style:italic;font-size:1.15rem;color:var(--soft);margin-top:.3rem}
+  #photo{width:78px;height:78px;flex:none;border-radius:50%;overflow:hidden;border:1px solid rgba(28,38,51,.45)}
+  #photo svg.art{width:100%;height:100%;display:block;transform:scale(1.55) translate(1%,2%)}
+  /* bottom right: season + call sentence, lined up with the legend */
+  #listen .lines{position:absolute;right:2.6rem;bottom:2.2rem;display:flex;flex-direction:column;gap:.3rem;text-align:right}
+  #listen .season{font-family:var(--mono);font-size:0.88rem;letter-spacing:.01em;color:var(--soft);line-height:1.4}
+  #listen .key{position:absolute;left:2.6rem;bottom:5.6rem;max-width:44vw;font-family:var(--mono);font-size:0.88rem;letter-spacing:.01em;color:var(--soft);line-height:1.4}
+  #listen .acts{position:absolute;left:2.6rem;bottom:2.2rem;display:flex;gap:.8rem}
+  /* right: everything about the bird — name above, circular portrait below */
+  @media (max-width:860px){ #listen .head2{top:4rem;left:1.3rem} #photo{width:56px;height:56px} #listen .lines{left:1.3rem;right:1.3rem} #listen .key{display:none} }
+  .pill{font-family:var(--mono);font-size:0.88rem;letter-spacing:.01em;padding:.2rem 0;color:var(--soft);
+    border-bottom:1px solid transparent;transition:color .25s,border-color .25s}
+  .pill:hover{color:var(--ink);border-bottom-color:var(--ink)}
+  /* nav */
+  #nav{position:fixed;bottom:1.9rem;right:2.2rem;font-size:1.15rem;z-index:6;display:flex;gap:.6rem;align-items:baseline;font-family:var(--mono);font-size:1rem;color:var(--soft);transition:opacity .6s}
+  #nav{gap:.9rem!important;align-items:center!important}
+  #nav button{position:relative;color:#8a939d;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid transparent;transition:color .3s,border-color .3s}
+  #nav button svg{width:32px;height:32px}
+  #nav button:hover{color:#5f6974;border-color:rgba(28,38,51,.2)}
+  #nav button.cur{color:#5f6974;border-color:rgba(28,38,51,.24)}
+  body.mapping #nav button.cur,body.mapping #nav button:hover{border-color:var(--navring,rgba(28,38,51,.28))}
+  #nav .ic{fill:none;stroke:currentColor;stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round}
+  #nav .ic.thin{stroke-width:1} #nav .ic.dash{stroke-dasharray:1.5 2} #nav .ic.fillp{fill:currentColor;stroke:none}
+  #nav .ic-f path{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  #nav .ic-d{fill:currentColor}
+  #nav .tip{position:absolute;bottom:52px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:.85rem;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none}
+  #nav button:hover .tip{opacity:1}
+  #nav.hidden{opacity:0;pointer-events:none}
+  body.listening #nav{opacity:0;pointer-events:none}
+  body.mapping #nav button:not(.cur){color:var(--navsoft,var(--soft))}
+  body.mapping #nav button.cur{color:var(--navgrey,#5f6974)}
+  body.mapping #flock,body.mapping #trail{opacity:0}
+  /* sort */
+  body.sorting #flock,body.sorting #trail{opacity:0}
+  #sortview{z-index:4;pointer-events:none}
+  #sortview.on{pointer-events:auto}
+  #sortview .shead{position:absolute;left:2.6rem;top:2.2rem}
+  #sortview .shead h2{font-weight:400;font-size:clamp(2.2rem,3.6vw,3.2rem);line-height:1}
+  #sortview .shead p{font-family:var(--mono);font-size:.95rem;color:var(--soft);margin-top:.4rem}
+  #sorttoggles{position:absolute;right:2.6rem;top:3rem;display:flex;gap:.55rem;align-items:baseline;font-family:var(--mono);font-size:1rem;color:var(--soft)}
+  #sorttoggles button{color:var(--soft);border-bottom:1px solid transparent;padding:.1rem 0}
+  #sorttoggles button:hover{color:var(--ink)} #sorttoggles button.cur{color:var(--ink);border-bottom-color:currentColor}
+  #sortboard{position:absolute;inset:0;pointer-events:none}
+  #sortboard .sb{position:absolute;left:0;top:0;border-radius:50%;border:1px solid rgba(28,38,51,.45);background:transparent;padding:0;overflow:hidden;pointer-events:auto;
+    transition:transform 1.1s cubic-bezier(.45,.05,.2,1),border-color .2s,background .2s}
+  #sortboard .sb:hover{border-color:var(--ink);background:rgba(232,240,247,.95);z-index:2;scale:2.1}
+  #sortboard .sb{transition:translate 1.1s cubic-bezier(.45,.05,.2,1),scale .2s 0s,border-color .2s,background .2s!important}
+  #sortboard .sb svg{width:100%;height:100%;display:block;transform:scale(1.5) translate(1%,2%)}
+  #sortheads .axis{position:absolute;border-left:1px solid rgba(28,38,51,.55)}
+  #sortheads .baseline{position:absolute;border-top:1px solid rgba(28,38,51,.55)}
+  #sortheads .grid{position:absolute;border-top:1px dashed rgba(28,38,51,.14)}
+  #sortheads .tick{position:absolute;width:6px;border-top:1px solid rgba(28,38,51,.55)}
+  #sortheads .tick span{position:absolute;right:12px;top:-.62em;font-family:var(--mono);font-size:.82rem;color:var(--soft)}
+  #sortheads .ylab{position:absolute;transform:translate(-50%,-50%) rotate(-90deg);font-family:var(--mono);font-size:.85rem;color:var(--soft);white-space:nowrap}
+  #sortheads .xl{position:absolute;transform:translateX(-50%);text-align:center;font-family:var(--mono);font-size:.92rem;line-height:1.2}
+  #sortheads .xl.diag{transform:translateX(-100%) rotate(-35deg);transform-origin:100% 0;white-space:nowrap;text-align:right;width:auto}
+  #sortheads .xtitle{position:absolute;transform:translateX(-50%);font-family:var(--mono);font-size:.85rem;color:var(--soft)}
+  #sortheads .sh{position:absolute;border-top:1px solid rgba(28,38,51,.25);padding-top:.35rem;transition:left .6s,top .6s}
+  #sortheads .n{font-family:var(--serif);font-style:italic;font-size:1.15rem;line-height:1.1}
+  #sortheads .c{font-family:var(--mono);font-size:.8rem;color:var(--soft)}
+  #sortview .snote{position:absolute;left:2.6rem;bottom:1.6rem;font-family:var(--mono);font-size:.88rem;color:var(--soft)}
+  #sortcard{position:fixed;z-index:5;opacity:0;pointer-events:none;transform:translate(-50%,-100%);transition:opacity .2s;background:#bfd7ec;border:1px solid #a9c8e3;border-radius:8px;padding:.45rem .95rem .4rem;text-align:center;white-space:nowrap;line-height:1.15}
+  #sortcard .t{font-family:var(--serif);font-style:italic;font-size:1.25rem}
+  #sortcard .s,#sortcard .m{font-family:var(--mono);font-size:.78rem;color:rgba(28,38,51,.75)}
+  /* map */
+  #mapview{z-index:4;pointer-events:none;color:var(--mink);--mink:#1c2633;--mfaint:rgba(28,38,51,.3)}
+  #mapview.on{pointer-events:auto}
+  #mapsky,#stars,#mapsvg,#mapflock{position:absolute;inset:0;width:100%;height:100%}
+  #mapsky{transition:background .4s}
+  #stars{transition:opacity .6s;pointer-events:none}
+  #mapflock{pointer-events:none}
+  #mapsvg .ln{fill:none;stroke:var(--mink);transition:stroke .4s}
+  #mapsvg .st{stroke:var(--mink);stroke-width:.5;opacity:.18} #mapsvg .av{stroke:var(--mink);stroke-width:1;opacity:.3}
+  #mapsvg .blk{fill:var(--mink);opacity:.045}
+  #mapsvg .blkB{fill:var(--mink);opacity:.075}
+  #mapsvg .stM{stroke:var(--mink);stroke-width:.8;opacity:.35}
+  #mapsvg .avl,#mapsvg .stl{font-family:var(--mono);font-size:12px;fill:var(--mink);opacity:.6}
+  #mapsvg .park{fill:var(--mink);opacity:.035}
+  #mapsvg .edge2{fill:none;stroke:var(--mink);stroke-width:1.4}
+  #mapsvg .lawn{fill:url(#grass);stroke:var(--mink);stroke-width:.6;stroke-dasharray:2 3;opacity:.75}
+  #mapsvg .mkf{fill:var(--mink);opacity:.5}
+  #mapsvg .tree{fill:var(--mink);opacity:.22}
+  #mapsvg .water{fill:url(#hatch);stroke:var(--mink);stroke-width:1}
+  #mapsvg .stream{fill:none;stroke:var(--mink);stroke-width:1.6;opacity:.6}
+  #mapsvg .bldg{fill:none;stroke:var(--mink);stroke-width:.8;opacity:.6}
+  #mapsvg .drive{fill:none;stroke:var(--mink);stroke-width:.7;stroke-dasharray:5 3;opacity:.4}
+  #mapsvg .trans{fill:none;stroke:var(--mink);stroke-width:2.2;opacity:.28}
+  #mapsvg .path{fill:none;stroke:var(--mink);stroke-width:.6;stroke-dasharray:1 2.5;opacity:.5}
+  #mapsvg .tiny{font-family:var(--mono);font-size:11.5px;fill:var(--mink);opacity:.75}
+  #mapsvg .narrow{fill:var(--mink)} #mapsvg .nl{font-family:var(--serif);font-style:italic;font-size:14px;fill:var(--mink)}
+  #mapsvg .scale line{stroke:var(--mink);stroke-width:1}
+  #mapsvg .halo{fill:none;stroke:var(--mink);stroke-width:.9;opacity:.55}
+  #mapsvg .flk{stroke:var(--mink);stroke-width:1.2}
+  #mapsvg .mk{stroke:var(--mink);opacity:.55}
+  #mapsvg .faint{opacity:.35} #mapsvg .dash{stroke-dasharray:2 5;opacity:.45} #mapsvg .dot{stroke-dasharray:1 4;opacity:.6;stroke-width:1}
+  #mapsvg .edge{font-family:var(--mono);font-size:13px;fill:var(--mink);opacity:.6}
+  #mapsvg .spot{cursor:pointer}
+  #mapsvg .hit{fill:transparent}
+  #mapsvg .dotc{fill:var(--mink)} #mapsvg .ring{fill:none;stroke:var(--mink);opacity:.45}
+  #mapsvg .sl{font-family:var(--serif);font-style:italic;font-size:15.5px;font-weight:500;fill:var(--mink);paint-order:stroke fill;stroke:var(--labelbg,#eef4f9);stroke-width:5px;stroke-linejoin:round;stroke-opacity:.92}
+  #mapsvg .spot:hover .ring{opacity:1}
+  #mapview .mhead{position:absolute;left:2.6rem;top:2.2rem}
+  #mapview .mhead h2{font-weight:400;font-size:clamp(2.2rem,3.6vw,3.2rem);line-height:1}
+  #mapview .mhead p{font-family:var(--mono);font-size:.95rem;opacity:.7;margin-top:.4rem}
+  #mapview .mclock{position:absolute;right:2.6rem;top:2.2rem;text-align:right}
+  #mTime{font-family:var(--serif);font-style:italic;font-size:clamp(2rem,3.2vw,2.8rem);line-height:1}
+  #mPart{font-family:var(--mono);font-size:.95rem;opacity:.75;margin-top:.4rem}
+  .timebar{position:absolute;left:50%;bottom:2.4rem;transform:translateX(-50%);width:min(760px,80vw)}
+  .timebar .ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.85rem;opacity:.7;margin-bottom:.5rem}
+  #hour{-webkit-appearance:none;appearance:none;width:100%;height:1px;background:var(--mink);opacity:.8;outline:none}
+  #hour::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--mink);border:3px solid rgba(255,255,255,.55);cursor:pointer}
+  #hour::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--mink);border:3px solid rgba(255,255,255,.55);cursor:pointer}
+  #mapcard{position:absolute;opacity:0;pointer-events:none;transition:opacity .25s;background:#bfd7ec;border:1px solid #a9c8e3;border-radius:8px;padding:.6rem .95rem .55rem;color:#1c2633;max-width:340px;text-align:left;z-index:5}
+  #mapcard .t{font-family:var(--serif);font-style:italic;font-size:1.3rem;line-height:1.05}
+  #mapcard .s,#mapcard .m{font-family:var(--mono);font-size:.82rem;color:rgba(28,38,51,.7);margin-top:.15rem;line-height:1.25}
+  #mapcard .names{display:flex;flex-wrap:wrap;gap:.1rem .7rem;margin:.4rem 0 .2rem;font-family:var(--mono);font-size:.86rem}
+  #mapcard .bn{color:#1c2633;border-bottom:1px solid rgba(28,38,51,.25)} #mapcard .bn:hover{border-bottom-color:#1c2633}
+  #mapcard .quiet{opacity:.6}
+  @media (max-width:760px){ #home header{left:1.3rem;top:1.3rem} #cta{left:1.3rem;bottom:1.4rem} #pitch{right:3.6rem} }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<canvas id="memory"></canvas>
+<canvas id="trail"></canvas>
+<canvas id="flock"></canvas>
+
+<section id="intro" class="screen">
+  <p class="kick">A field guide in sound</p>
+  <h1 class="title">The Birds of Central Park</h1>
+  <p class="desc">Seventy-two species and their songs, seen as a flock, a map and a chart</p>
+  <div class="go">
+    <div class="sound"><svg class="speaker" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 19h7l9-7v24l-9-7H8z"/><path class="w1" d="M30 18c2.5 3 2.5 9 0 12"/><path class="w2" d="M34 14c5 5 5 15 0 20"/><path class="w3" d="M38 10c7 7.5 7 20.5 0 28"/>
+  </svg><p class="line">Turn your sound on to <button id="enter" aria-label="Enter">enter <span class="arr">→</span></button></p></div>
+  </div>
+</section>
+
+<section id="home" class="screen hidden">
+  <div id="cta">
+    <p class="big">Click on a flock to hear its call</p>
+    <p class="small">Flocks that sound alike fly together · higher in the sky = higher pitch</p>
+  </div>
+</section>
+<nav id="nav" class="hidden"><button data-v="flock" class="cur" aria-label="Flock" title="Flock"><svg viewBox="0 0 40 40"><g class="ic-f"><path d="M5.8,25.4 Q7.6,25.2 9.0,27.0 Q10.4,25.2 12.2,25.4"/><path d="M11.8,21.4 Q13.6,21.2 15.0,23.0 Q16.4,21.2 18.2,21.4"/><path d="M8.8,15.4 Q10.6,15.2 12.0,17.0 Q13.4,15.2 15.2,15.4"/><path d="M17.8,16.4 Q19.6,16.2 21.0,18.0 Q22.4,16.2 24.2,16.4"/><path d="M15.8,10.4 Q17.6,10.2 19.0,12.0 Q20.4,10.2 22.2,10.4"/><path d="M23.8,12.4 Q25.6,12.2 27.0,14.0 Q28.4,12.2 30.2,12.4"/><path d="M22.8,20.4 Q24.6,20.2 26.0,22.0 Q27.4,20.2 29.2,20.4"/><path d="M28.8,7.4 Q30.6,7.2 32.0,9.0 Q33.4,7.2 35.2,7.4"/><path d="M29.8,17.4 Q31.6,17.2 33.0,19.0 Q34.4,17.2 36.2,17.4"/></g></svg><span class="tip">Flock</span></button><button data-v="map" aria-label="Map" title="Map"><svg viewBox="0 0 40 40"><path d="M5,11 L14,7 L26,11 L35,7 L35,30 L26,34 L14,30 L5,34 Z" class="ic"/><path d="M14,7 L14,30 M26,11 L26,34" class="ic thin"/><path d="M8,22 C12,19 15,25 19,21 S28,18 32,23" class="ic thin dash"/><path d="M24,16 c0,-3.2 4.6,-3.2 4.6,0 c0,2.4 -2.3,4.8 -2.3,4.8 c0,0 -2.3,-2.4 -2.3,-4.8 Z" class="ic fillp"/></svg><span class="tip">Map</span></button><button data-v="sort" aria-label="Sort the birds" title="Sort"><svg viewBox="0 0 40 40"><path d="M5,33 L35,33" class="ic thin"/><circle cx="10" cy="30" r="1.9" class="ic-d"/><circle cx="10" cy="25" r="1.9" class="ic-d"/><circle cx="10" cy="20" r="1.9" class="ic-d"/><circle cx="17" cy="30" r="1.9" class="ic-d"/><circle cx="17" cy="25" r="1.9" class="ic-d"/><circle cx="17" cy="20" r="1.9" class="ic-d"/><circle cx="17" cy="15" r="1.9" class="ic-d"/><circle cx="17" cy="10" r="1.9" class="ic-d"/><circle cx="24" cy="30" r="1.9" class="ic-d"/><circle cx="24" cy="25" r="1.9" class="ic-d"/><circle cx="31" cy="30" r="1.9" class="ic-d"/><circle cx="31" cy="25" r="1.9" class="ic-d"/><circle cx="31" cy="20" r="1.9" class="ic-d"/><circle cx="31" cy="15" r="1.9" class="ic-d"/></svg><span class="tip">Sort</span></button></nav>
+<section id="mapview" class="screen hidden">
+  <div id="mapsky"></div>
+  <svg id="stars" width="100%" height="100%"></svg>
+  <svg id="mapsvg"></svg>
+  <canvas id="mapflock"></canvas>
+  <div class="mhead"><h2>Where to listen</h2><p>Central Park, hour by hour</p></div>
+  <div class="mclock"><p id="mTime"></p><p id="mPart"></p></div>
+  <div class="timebar">
+    <div class="ticks"><span>Night</span><span>Dawn</span><span>Morning</span><span>Midday</span><span>Afternoon</span><span>Dusk</span><span>Night</span></div>
+    <input type="range" id="hour" min="4" max="23" step="0.25" value="6.5">
+  </div>
+  <div id="mapcard"></div>
+</section>
+<section id="sortview" class="screen hidden">
+  <div class="shead"><h2>Sort the birds</h2><p id="sortblurb"></p></div>
+  <div id="sorttoggles"></div>
+  <div id="sortheads"></div>
+  <div id="sortboard"></div>
+  <p class="snote">Click a bird to hear it · family follows standard taxonomy, other groupings are estimates</p>
+  <div id="sortcard"></div>
+</section>
+<div id="veil"></div>
+<canvas id="stage"></canvas>
+<section id="listen" class="screen hidden">
+  <button class="pill back" id="lBack">← Back to the flock</button>
+  <p class="key">Each bird is a note · left to right is time · higher on the staff is higher pitch · bigger is louder</p>
+  <div class="acts"><button class="pill" id="lPlay">↻ Play again</button></div>
+  <div class="head2" id="lTitle">
+    <div id="photo"><span class="ph" id="lPh" hidden></span><span id="lCredit" hidden></span></div>
+    <div><h2 id="lName"></h2><p class="latin" id="lLatin"></p></div>
+  </div>
+  <div class="lines"><p class="season" id="lSeason"></p><p class="season" id="lMeta"></p></div>
+</section>
+<div id="label"><div class="n"></div><div class="d"></div><div class="m"></div></div>
+
+<script>
+const BIRDS = [
+  {id:"cardinal", name:"Northern Cardinal"}, {id:"chickadee",name:"Black-capped Chickadee"},
+  {id:"robin", name:"American Robin"}, {id:"jay", name:"Blue Jay"}, {id:"dove", name:"Mourning Dove"},
+  {id:"blackbird",name:"Red-winged Blackbird"}, {id:"wren", name:"House Wren"},
+  {id:"sparrow", name:"White-throated Sparrow"}, {id:"catbird", name:"Gray Catbird"}, {id:"owl", name:"Great Horned Owl"},
+];
+
+/* ---------- synthesis + analysis (stand-in calls; real recordings drop in here) ---------- */
+const SR = 22050;
+let seed = 7; const rand = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+
+function note(out, t0, d, f, amp=1, o={}){
+  const {noise=0, harm=[1], vib=0, vibRate=0, attack=.02, release=.05, buzz=0} = o;
+  const s = Math.floor(t0*SR), n = Math.floor(d*SR); let ph = 0;
+  for(let i=0;i<n && s+i<out.length;i++){
+    const u=i/n, t=i/SR;
+    const fr = f(u)*(1+vib*Math.sin(2*Math.PI*vibRate*t));
+    ph += 2*Math.PI*fr/SR;
+    const env = Math.max(0,Math.min(1,t/attack))*Math.max(0,Math.min(1,(d-t)/release));
+    let v=0; for(let k=0;k<harm.length;k++) v += harm[k]*Math.sin(ph*(k+1));
+    if(noise) v = v*(1-noise) + noise*(rand()*2-1)*Math.sin(ph)*2.2;
+    if(buzz) v *= .45+.55*Math.abs(Math.sin(Math.PI*buzz*t));
+    out[s+i] += amp*env*v;
+  }
+}
+const lin = (a,b)=>u=>a+(b-a)*u;
+
+const SYNTH = {
+  cardinal(){ const o=new Float32Array(2.0*SR);
+    for(let k=0;k<4;k++) note(o,.1+k*.38,.27,u=>3900-2100*Math.pow(u,.8),.9,{harm:[1,.12]}); return o;},
+  chickadee(){ const o=new Float32Array(1.3*SR);
+    note(o,.08,.42,lin(4050,3980),1,{harm:[1,.04],attack:.05}); note(o,.62,.5,lin(3560,3480),.85,{harm:[1,.04],attack:.05}); return o;},
+  robin(){ const o=new Float32Array(2.3*SR);
+    const ph=[[2600,2150],[2950,2400],[2300,2750],null,[2750,2300],[2500,2950],[2250,1950]]; let t=.08;
+    ph.forEach(p=>{ if(!p){t+=.22;return;} note(o,t,.17,lin(p[0],p[1]),.85,{harm:[1,.3,.1],vib:.025,vibRate:38}); t+=.26;}); return o;},
+  jay(){ const o=new Float32Array(1.4*SR);
+    [.1,.62].forEach(t=>note(o,t,.36,u=>2300+700*Math.sin(Math.PI*u),1,{harm:[1,.7,.5,.3],noise:.55,attack:.01})); return o;},
+  dove(){ const o=new Float32Array(3.0*SR); const op={harm:[1,.18],vib:.008,vibRate:6,attack:.09,release:.14};
+    note(o,.1,.32,lin(520,610),.7,op); note(o,.52,.62,u=>560+130*Math.sin(Math.PI*u),1,op);
+    [1.32,1.82,2.32].forEach(t=>note(o,t,.4,lin(505,450),.8,op)); return o;},
+  blackbird(){ const o=new Float32Array(1.6*SR);
+    note(o,.1,.09,lin(2100,2600),.9,{harm:[1,.4],noise:.2}); note(o,.26,.11,lin(3050,2400),.8,{harm:[1,.4],noise:.2});
+    note(o,.46,.95,u=>3500+150*u,.9,{harm:[1,.45],noise:.3,buzz:68,vib:.06,vibRate:68,release:.2}); return o;},
+  wren(){ const o=new Float32Array(2.0*SR); seed=31;
+    for(let k=0;k<22;k++){ const a=2700+rand()*2300, b=2700+rand()*2300, env=Math.sin(Math.PI*(k+1)/23);
+      note(o,.1+k*.077,.06,lin(a,b),.4+.6*env,{harm:[1,.25],attack:.006,release:.015}); } return o;},
+  sparrow(){ const o=new Float32Array(2.9*SR); const op={harm:[1,.03],attack:.04,release:.06};
+    note(o,.1,.62,lin(3320,3300),.85,op); note(o,.82,.52,lin(4320,4300),.9,op);
+    for(let g=0;g<3;g++) for(let k=0;k<3;k++) note(o,1.45+g*.48+k*.15,.12,lin(4300,4280),.8,{...op,attack:.015,release:.03}); return o;},
+  catbird(){ const o=new Float32Array(1.0*SR);
+    note(o,.06,.58,u=>u<.3?1500+3200*u:2460-1100*(u-.3),1,{harm:[1,.45,.2],noise:.28,attack:.05,release:.12}); return o;},
+  owl(){ const o=new Float32Array(3.0*SR); const op={harm:[1,.3,.1],noise:.05,attack:.05,release:.1};
+    [[.1,.36],[.62,.17],[.84,.3],[1.42,.52],[2.14,.52]].forEach(([t,d])=>note(o,t,d,lin(330,290),.9,op)); return o;},
+};
+function normalize(a){ let m=0; for(const v of a) m=Math.max(m,Math.abs(v)); for(let i=0;i<a.length;i++) a[i]*=.8/m; return a;}
+
+/* ============================================================
+   ANALYSIS — the same pipeline would run on real recordings
+   ============================================================ */
+function fft(re,im){ const n=re.length;
+  for(let i=1,j=0;i<n;i++){ let b=n>>1; for(;j&b;b>>=1) j^=b; j^=b; if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]];}}
+  for(let len=2;len<=n;len<<=1){ const a=-2*Math.PI/len, wr=Math.cos(a), wi=Math.sin(a);
+    for(let i=0;i<n;i+=len){ let cr=1,ci=0;
+      for(let j=0;j<len/2;j++){ const ur=re[i+j],ui=im[i+j], vr=re[i+j+len/2]*cr-im[i+j+len/2]*ci, vi=re[i+j+len/2]*ci+im[i+j+len/2]*cr;
+        re[i+j]=ur+vr; im[i+j]=ui+vi; re[i+j+len/2]=ur-vr; im[i+j+len/2]=ui-vi; const t=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=t; }}}}
+
+function analyse(x){
+  const N=512, H=256, frames=[];
+  for(let s=0;s+N<=x.length;s+=H){
+    const re=new Float64Array(N), im=new Float64Array(N); let e=0;
+    for(let i=0;i<N;i++){ const w=.5-.5*Math.cos(2*Math.PI*i/N); re[i]=x[s+i]*w; e+=x[s+i]*x[s+i]; }
+    fft(re,im); let num=0,den=0,lg=0,ar=0,cnt=0,pk=0,pkk=0;
+    for(let k=4;k<N/2;k++){ const p=re[k]*re[k]+im[k]*im[k]+1e-12; num+=k*SR/N*p; den+=p; if(p>pk){pk=p;pkk=k;} lg+=Math.log(p); ar+=p; cnt++; }
+    frames.push({rms:Math.sqrt(e/N), cent:num/den, peak:pkk*SR/N, flat:Math.exp(lg/cnt)/(ar/cnt)});
+  }
+  const maxR=Math.max(...frames.map(f=>f.rms)), act=frames.filter(f=>f.rms>.12*maxR);
+  let onsets=0, on=false; frames.forEach(f=>{ const a=f.rms>.12*maxR; if(a&&!on) onsets++; on=a; });
+  const lc=act.map(f=>Math.log(f.cent)), m=lc.reduce((a,b)=>a+b,0)/lc.length;
+  const sd=Math.sqrt(lc.reduce((a,b)=>a+(b-m)**2,0)/lc.length);
+  const flat=act.reduce((a,f)=>a+f.flat,0)/act.length;
+  const dur=x.length/SR, actT=act.length*H/SR;
+  let wl=0,ws=0; act.forEach(f=>{wl+=f.rms*Math.log(f.peak);ws+=f.rms;});
+  return { frames, maxR, dur, onsets, pitchHz:Math.exp(wl/ws),
+    meanHz:Math.exp(m),
+    vec:[m, sd, Math.log(flat+1e-4), Math.log(onsets/dur), Math.log(actT/onsets), actT/dur] };
+}
+
+
+
+/* similarity along x: first principal component of the non-pitch features */
+function pc1(rows){
+  const d=rows[0].length,n=rows.length;
+  const mu=[...Array(d)].map((_,j)=>rows.reduce((a,r)=>a+r[j],0)/n);
+  const sg=[...Array(d)].map((_,j)=>Math.sqrt(rows.reduce((a,r)=>a+(r[j]-mu[j])**2,0)/n)||1);
+  const Z=rows.map(r=>r.map((v,j)=>(v-mu[j])/sg[j]));
+  const C=[...Array(d)].map((_,i)=>[...Array(d)].map((_,j)=>Z.reduce((a,z)=>a+z[i]*z[j],0)/n));
+  let v=[...Array(d)].map((_,i)=>1+i*.1);
+  for(let it=0;it<200;it++){ const w=C.map(r=>r.reduce((a,x,j)=>a+x*v[j],0)); const nn=Math.hypot(...w); v=w.map(x=>x/nn); }
+  return Z.map(z=>z.reduce((a,x,i)=>a+x*v[i],0));
+}
+
+/* ---------- noise for the swirling flow field ---------- */
+const PERM=new Uint8Array(512); (()=>{ const p=[...Array(256).keys()]; let s=42;
+  for(let i=255;i>0;i--){ s=(s*16807)%2147483647; const j=s%(i+1); [p[i],p[j]]=[p[j],p[i]]; } for(let i=0;i<512;i++) PERM[i]=p[i&255]; })();
+function grad(h,x,y,z){ const u=h<8?x:y, v=h<4?y:(h===12||h===14?x:z); return ((h&1)?-u:u)+((h&2)?-v:v); }
+function noise3(x,y,z){ const X=Math.floor(x)&255,Y=Math.floor(y)&255,Z=Math.floor(z)&255; x-=Math.floor(x);y-=Math.floor(y);z-=Math.floor(z);
+  const f=t=>t*t*t*(t*(t*6-15)+10), u=f(x),v=f(y),w=f(z), L=(a,b,t)=>a+t*(b-a);
+  const A=PERM[X]+Y,AA=PERM[A]+Z,AB=PERM[A+1]+Z,B=PERM[X+1]+Y,BA=PERM[B]+Z,BB=PERM[B+1]+Z;
+  return L(L(L(grad(PERM[AA]&15,x,y,z),grad(PERM[BA]&15,x-1,y,z),u),L(grad(PERM[AB]&15,x,y-1,z),grad(PERM[BB]&15,x-1,y-1,z),u),v),
+           L(L(grad(PERM[AA+1]&15,x,y,z-1),grad(PERM[BA+1]&15,x-1,y,z-1),u),L(grad(PERM[AB+1]&15,x,y-1,z-1),grad(PERM[BB+1]&15,x-1,y-1,z-1),u),v),w); }
+function curl(x,y,t){ const e=.01; return [ (noise3(x,y+e,t)-noise3(x,y-e,t))/(2*e), -(noise3(x+e,y,t)-noise3(x-e,y,t))/(2*e) ]; }
+
+/* ---------- sky ---------- */
+const sky=document.getElementById('sky'), sk=sky.getContext('2d');
+function paintSky(){
+  const W=innerWidth,H=innerHeight,dpr=Math.min(2,devicePixelRatio||1);
+  sky.width=W*dpr; sky.height=H*dpr; sk.setTransform(dpr,0,0,dpr,0,0);
+  const g=sk.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#86b2da'); g.addColorStop(.45,'#a9c9e6'); g.addColorStop(.8,'#cfe0ee'); g.addColorStop(1,'#e3ecf2');
+  sk.fillStyle=g; sk.fillRect(0,0,W,H);
+  // faint high haze / wisps
+  const cw=240,ch=Math.round(240*H/W),c=document.createElement('canvas'); c.width=cw;c.height=ch; const cc=c.getContext('2d'), im=cc.createImageData(cw,ch);
+  for(let y=0;y<ch;y++) for(let x=0;x<cw;x++){ let n=0,a=1,f=.0025*W/cw;
+    for(let o=0;o<4;o++){ n+=a*noise3(x*f*(1<<o)*.8,y*f*(1<<o)*1.8,7.3+o); a*=.5; }
+    const v=Math.max(0,n+.1)*.5*(.2+.8*y/ch), i=(y*cw+x)*4; im.data[i]=im.data[i+1]=im.data[i+2]=255; im.data[i+3]=Math.min(255,v*260); }
+  cc.putImageData(im,0,0); sk.globalAlpha=.35; sk.imageSmoothingQuality='high'; sk.filter='blur(30px)'; sk.drawImage(c,0,0,W,H); sk.filter='none'; sk.globalAlpha=1;
+  // soft sun glow, top right
+  const r=sk.createRadialGradient(W*.82,-H*.1,0,W*.82,-H*.1,H*.9); r.addColorStop(0,'rgba(255,250,235,.45)'); r.addColorStop(1,'rgba(255,250,235,0)');
+  sk.fillStyle=r; sk.fillRect(0,0,W,H);
+}
+
+/* ---------- the murmuration ---------- */
+// bird silhouettes traced from the reference photo into vector outlines (crisp at any size)
+const SIL=[{"w":61.0,"h":76.5,"polys":[[-22.8,38.26,-23.42,38.06,-23.72,37.5,-23.33,35.88,-23.37,34.13,-21.68,31.63,-21.4,30.0,-20.97,28.63,-20.8,27.25,-19.46,23.13,-19.29,20.63,-18.37,18.75,-18.09,16.38,-17.53,15.13,-16.37,13.63,-16.17,13.0,-16.42,12.73,-17.05,12.84,-19.74,14.25,-21.55,14.85,-22.92,15.65,-25.42,16.66,-28.92,18.42,-29.8,18.52,-30.31,18.13,-30.52,17.25,-30.04,15.75,-30.17,13.5,-29.13,11.38,-28.99,9.13,-28.12,7.25,-28.14,5.0,-27.26,3.5,-26.46,1.38,-26.39,-0.62,-25.89,-1.75,-25.17,-2.52,-24.17,-2.64,-18.92,-1.38,-12.67,-0.34,-10.3,0.22,-9.55,0.25,-8.92,0.02,-8.53,-0.5,-7.92,-2.3,-6.19,-4.62,-4.8,-7.02,-3.3,-9.16,0.22,-12.87,1.73,-14.25,4.45,-17.88,5.63,-19.0,6.45,-20.37,9.42,-23.75,10.43,-25.12,11.99,-26.25,13.17,-28.0,14.7,-29.19,15.45,-31.02,16.33,-31.5,17.45,-31.45,17.81,-31.62,18.31,-33.5,18.95,-34.11,19.7,-34.33,20.7,-33.93,21.2,-33.99,22.95,-36.0,23.58,-36.2,24.58,-35.8,24.95,-35.82,26.45,-38.03,26.95,-38.26,27.58,-38.07,28.15,-37.12,28.33,-35.17,28.7,-34.95,29.7,-35.14,30.08,-35.05,30.42,-34.62,30.52,-34.0,30.11,-30.75,28.39,-26.12,27.67,-24.62,27.73,-23.12,27.54,-22.25,24.95,-18.37,24.2,-16.75,23.08,-15.15,21.83,-14.19,20.83,-13.16,16.44,-8.12,13.48,-3.12,12.35,-0.25,12.24,1.5,12.48,2.5,12.95,2.97,15.95,4.49,16.8,5.13,18.11,7.38,18.23,8.13,18.08,8.72,17.2,9.18,15.7,9.2,12.08,9.77,7.7,9.77,5.58,10.29,4.83,10.67,4.33,11.23,3.3,13.38,2.72,17.0,1.95,19.21,-0.1,22.0,-0.66,23.0,-1.1,24.25,-2.05,25.35,-3.8,26.37,-5.55,28.35,-7.55,30.23,-8.92,31.29,-12.22,32.88,-14.31,34.5,-18.42,36.98,-19.55,37.93,-20.3,38.13,-21.67,37.84,-22.8,38.26]]},{"w":42.4,"h":76.3,"polys":[[11.75,38.16,9.75,38.11,8.88,37.71,7.5,36.32,4.39,33.91,1.93,31.16,-0.12,29.57,-1.5,27.72,-2.56,25.29,-4.04,20.16,-4.85,18.16,-5.36,15.16,-5.45,11.79,-6.1,7.79,-6.5,6.91,-7.12,6.24,-7.75,5.95,-11.25,5.65,-12.67,5.79,-13.12,5.64,-13.43,5.29,-13.46,4.54,-12.9,3.04,-11.38,1.16,-10.22,0.04,-9.87,-0.84,-9.81,-1.84,-10.25,-3.8,-11.3,-6.09,-13.36,-9.34,-15.76,-12.34,-16.99,-14.59,-18.37,-18.34,-19.98,-21.71,-20.86,-24.71,-21.16,-26.71,-21.22,-28.96,-20.74,-32.46,-20.63,-34.84,-20.38,-35.46,-19.44,-36.34,-18.88,-37.84,-18.5,-38.16,-18.12,-38.15,-16.37,-37.44,-15.12,-36.43,-13.75,-35.9,-13.33,-35.46,-12.62,-33.9,-11.37,-33.39,-11.0,-33.07,-10.67,-32.46,-10.25,-30.96,-8.8,-29.34,-7.84,-26.84,-5.54,-23.09,-4.16,-21.46,-3.47,-19.96,-0.97,-17.09,1.98,-13.21,3.03,-11.09,3.5,-9.66,4.53,-7.46,5.63,-5.68,6.0,-5.54,6.5,-5.6,8.42,-6.71,11.38,-8.72,15.0,-11.81,15.63,-11.85,16.13,-11.61,17.18,-9.96,18.18,-6.46,18.69,-2.84,19.29,-1.59,21.22,4.91,21.08,7.66,20.54,8.16,19.75,8.16,14.25,6.01,10.38,4.8,9.63,4.85,9.26,5.41,10.41,9.66,10.79,12.04,11.07,19.91,11.4,21.54,11.95,26.79,12.74,29.04,12.45,30.66,13.54,32.41,13.82,33.16,13.73,33.66,13.04,34.66,13.6,36.29,13.57,37.04,12.5,37.88,11.75,38.16]]},{"w":44.0,"h":31.5,"polys":[[3.01,15.7,-4.12,15.73,-6.87,15.55,-8.49,15.28,-11.49,15.4,-13.87,15.07,-14.87,15.12,-16.37,15.46,-16.87,15.28,-17.62,14.57,-18.24,14.29,-20.87,14.71,-21.62,14.52,-21.85,13.82,-21.49,13.32,-15.52,11.32,-14.4,10.69,-14.05,10.07,-14.41,9.32,-15.62,8.57,-16.87,7.42,-17.94,5.69,-18.44,4.44,-19.22,1.44,-20.12,-0.55,-21.5,-2.56,-21.92,-3.43,-22.02,-4.31,-21.57,-5.31,-22.02,-6.93,-21.12,-6.83,-20.37,-7.02,-20.11,-7.43,-20.12,-8.15,-18.87,-7.82,-17.62,-7.19,-17.12,-7.13,-16.87,-7.27,-16.98,-7.93,-17.86,-9.31,-18.31,-10.31,-18.32,-10.81,-17.99,-11.19,-17.49,-11.21,-17.12,-10.98,-14.74,-7.92,-13.87,-7.39,-13.7,-7.43,-13.69,-7.68,-14.11,-9.68,-13.87,-10.09,-13.37,-10.16,-12.99,-9.8,-10.12,-5.19,-9.62,-4.99,-9.24,-6.06,-8.87,-6.19,-8.56,-6.06,-7.99,-5.24,-7.12,-3.03,-5.69,-1.06,-2.62,1.11,-1.62,1.24,0.13,0.09,1.38,-1.08,5.67,-7.18,6.61,-8.18,7.38,-9.68,7.88,-10.0,8.88,-10.08,9.3,-10.31,9.59,-11.81,10.01,-12.48,10.76,-12.77,12.13,-12.48,13.26,-13.9,14.01,-14.14,14.88,-13.86,15.26,-13.9,16.13,-15.47,16.63,-15.73,17.26,-15.72,18.26,-14.88,19.51,-14.59,19.95,-14.06,20.21,-13.18,20.41,-11.31,20.76,-10.82,21.75,-10.06,22.02,-9.43,22.02,-8.43,21.65,-6.43,20.51,-3.99,19.38,-2.33,18.13,-0.96,16.74,0.94,10.52,5.82,9.4,7.19,9.17,7.69,9.41,8.32,12.26,9.85,13.76,11.09,14.28,11.82,14.26,12.44,14.01,12.77,13.63,12.92,12.01,12.79,11.13,12.91,9.51,13.63,3.01,15.7]]},{"w":49.4,"h":30.2,"polys":[[19.76,15.03,19.01,15.05,18.01,14.17,17.63,14.04,16.63,14.97,15.88,15.09,15.46,14.76,14.76,13.31,14.38,13.17,13.51,13.2,13.01,13.01,12.54,12.51,12.01,11.3,11.56,10.76,8.01,8.61,5.51,7.72,1.88,6.79,-0.99,6.5,-3.74,5.51,-6.74,4.02,-7.49,4.05,-15.99,6.14,-16.99,6.05,-18.62,5.44,-19.74,4.69,-22.62,0.68,-24.49,-1.48,-24.72,-1.99,-24.67,-2.61,-24.12,-3.27,-23.24,-3.45,-21.62,-3.03,-15.62,-1.97,-12.24,-1.72,-11.74,-1.82,-11.49,-2.11,-11.51,-2.61,-12.99,-7.19,-13.01,-9.86,-13.4,-10.74,-14.49,-11.99,-14.54,-12.36,-14.38,-12.74,-13.74,-13.14,-11.99,-13.16,-10.24,-13.73,-8.24,-13.74,-7.82,-13.99,-7.38,-14.86,-6.99,-15.09,-6.49,-14.98,-3.99,-13.43,-3.49,-13.58,-2.74,-14.51,-2.12,-14.52,-0.49,-12.75,0.38,-11.2,1.88,-10.8,3.63,-9.92,4.51,-9.31,5.3,-8.49,5.99,-7.11,6.43,-3.99,7.51,-2.0,8.79,-1.24,10.41,0.14,11.63,0.8,16.38,2.23,19.38,3.89,20.88,5.15,23.55,8.14,24.54,9.76,24.72,10.64,24.42,11.51,23.48,12.51,23.01,14.26,22.63,14.61,22.26,14.67,20.76,13.98,20.38,14.2,19.76,15.03]]},{"w":81.0,"h":45.8,"polys":[[37.33,22.88,32.95,22.35,28.45,22.05,25.83,21.3,20.08,20.09,17.7,19.38,14.08,18.95,13.33,19.03,12.05,19.75,11.08,19.94,5.95,19.19,4.95,19.2,4.45,19.38,3.2,20.31,1.95,20.96,-2.42,22.08,-3.17,22.06,-5.42,21.56,-6.67,21.71,-7.07,21.63,-7.6,21.0,-8.67,18.38,-8.76,17.25,-8.55,14.13,-8.87,13.13,-11.78,9.88,-14.74,7.13,-18.17,4.13,-24.29,-0.5,-26.42,-2.3,-33.41,-9.37,-34.47,-10.75,-38.05,-17.45,-40.3,-21.11,-40.5,-21.87,-40.38,-22.5,-40.17,-22.76,-39.8,-22.88,-39.3,-22.76,-38.92,-22.46,-34.67,-15.93,-32.72,-13.75,-29.05,-10.66,-28.06,-10.0,-27.05,-8.98,-22.17,-5.25,-19.49,-2.62,-14.8,0.87,-11.42,3.77,-8.17,6.67,-3.9,11.5,-2.39,12.63,-0.8,13.17,2.08,14.67,3.2,15.04,8.2,15.11,15.33,15.94,19.45,16.93,25.33,18.63,27.95,19.04,30.45,19.73,32.45,20.02,38.58,21.42,40.08,21.4,40.5,21.63,40.36,22.0,39.45,22.79,37.33,22.88]]},{"w":92.3,"h":31.0,"polys":[[41.8,15.51,40.18,15.11,38.43,15.14,37.55,14.97,35.93,14.16,24.93,10.07,21.38,8.31,18.93,7.31,12.18,5.3,5.93,4.47,3.8,4.64,2.93,5.08,2.3,5.64,1.18,7.17,0.05,9.17,-0.32,9.42,-0.82,9.4,-2.2,8.19,-5.7,6.86,-7.7,5.76,-10.45,3.22,-12.82,1.92,-14.2,0.93,-17.04,-1.69,-17.96,-2.82,-20.82,-4.82,-23.57,-6.16,-29.49,-8.07,-31.45,-8.45,-33.22,-9.69,-34.32,-10.23,-35.2,-10.4,-36.57,-10.23,-37.2,-10.31,-41.87,-12.07,-43.7,-12.57,-45.4,-13.44,-46.09,-14.32,-46.17,-14.69,-43.2,-15.51,-39.45,-14.52,-34.88,-12.82,-31.2,-11.74,-28.2,-11.07,-24.32,-9.67,-19.57,-8.2,-16.25,-6.44,-14.7,-5.82,-12.82,-4.44,-11.45,-3.93,-10.06,-3.19,-5.57,-1.68,-2.07,-1.21,0.8,0.46,5.43,1.42,8.05,1.59,10.3,2.1,12.8,2.37,16.18,3.11,22.3,5.21,26.3,6.76,28.43,7.2,37.05,10.48,38.62,10.81,41.55,10.88,43.68,11.25,45.18,12.38,46.17,12.81,43.55,13.76,41.76,13.81,41.51,14.31,41.91,15.31,41.8,15.51],[-12.17,-1.44,-11.77,-1.82,-12.07,-2.13,-12.7,-2.11,-13.12,-1.82,-13.09,-1.57,-12.87,-1.44,-12.17,-1.44]]},{"w":72.0,"h":26.9,"polys":[[-35.07,13.44,-35.83,13.31,-35.99,12.93,-35.82,12.56,-30.2,8.61,-28.07,7.59,-23.89,5.93,-21.7,4.38,-18.95,3.42,-17.32,2.67,-13.07,1.38,-7.7,0.63,-4.32,-0.73,0.55,-1.97,4.16,-3.69,6.68,-4.7,10.55,-5.88,12.68,-6.24,14.68,-6.78,28.05,-9.02,29.18,-9.59,30.55,-10.85,31.8,-11.71,33.43,-11.93,35.38,-13.44,35.8,-13.36,35.99,-13.07,35.94,-11.94,35.1,-10.57,31.72,-8.82,30.68,-7.93,29.18,-7.61,27.8,-6.94,25.3,-6.57,23.8,-6.06,18.05,-4.74,16.05,-4.04,14.18,-3.59,8.55,-1.46,5.18,0.38,4.57,1.06,4.37,1.93,5.17,7.06,5.02,8.43,4.23,10.31,3.68,10.73,3.18,10.52,1.68,9.09,1.18,8.98,0.8,9.15,0.6,9.56,0.61,10.06,1.24,11.81,1.18,12.08,0.89,12.31,0.18,12.3,-1.57,11.57,-2.32,10.81,-3.09,9.56,-3.57,9.18,-4.2,9.1,-5.82,9.43,-6.57,9.25,-6.92,8.81,-7.38,7.31,-7.82,6.74,-9.95,5.38,-10.95,5.03,-11.82,4.93,-14.32,5.48,-20.2,8.33,-22.7,9.19,-24.95,9.6,-26.45,10.31,-28.45,10.8,-35.07,13.44]]}];
+SIL.forEach(o=>{ const P=new Path2D();
+  for(const q of o.polys){ const n=q.length/2, X=i=>q[(i%n)*2], Y=i=>q[(i%n)*2+1];
+    P.moveTo((X(0)+X(1))/2,(Y(0)+Y(1))/2);
+    for(let i=1;i<=n;i++) P.quadraticCurveTo(X(i),Y(i),(X(i)+X(i+1))/2,(Y(i)+Y(i+1))/2);   // smooth through midpoints
+    P.closePath(); }
+  o.path=P; });
+
+const TYPES=[['hoot','coo, hoot or honk'],['harsh','harsh call'],['warble','warbled song'],['whistle','clear whistle'],['trill','trill'],['buzz','buzzy, very high']];
+// full Central Park list. id = one of the ten analysed calls; the rest are placeholders
+// (approximate song pitch in kHz + song type) until their recordings are in.
+const SPECIES=[
+ ['Great Horned Owl','hoot',0,'owl'],['Mourning Dove','hoot',0,'dove'],['Rock Pigeon','hoot',.5],['Barred Owl','hoot',.45],['Eastern Screech-Owl','hoot',.85],
+ ['Canada Goose','hoot',.8],['Mallard','hoot',1.0],['Black-crowned Night-Heron','hoot',.8],
+ ['Blue Jay','harsh',0,'jay'],['Red-winged Blackbird','harsh',0,'blackbird'],['American Crow','harsh',1.5],['Fish Crow','harsh',1.8],['Common Grackle','harsh',3.0],
+ ['Northern Flicker','harsh',2.5],['Belted Kingfisher','harsh',3.0],['Great Crested Flycatcher','harsh',2.5],['Red-tailed Hawk','harsh',2.4],['House Sparrow','harsh',3.6],
+ ['Red-bellied Woodpecker','harsh',1.6],['Eastern Kingbird','harsh',4.0],['White-breasted Nuthatch','harsh',1.8],['Red-breasted Nuthatch','harsh',2.0],
+ ['American Robin','warble',0,'robin'],['Gray Catbird','warble',0,'catbird'],['Northern Mockingbird','warble',3.0],['Brown Thrasher','warble',2.8],['European Starling','warble',3.5],
+ ['Song Sparrow','warble',3.5],['House Finch','warble',3.6],['Scarlet Tanager','warble',2.7],['Rose-breasted Grosbeak','warble',2.6],['Red-eyed Vireo','warble',3.0],
+ ['Warbling Vireo','warble',3.6],['American Goldfinch','warble',4.0],['Purple Finch','warble',3.4],['Brown-headed Cowbird','warble',5.0],
+ ['Northern Cardinal','whistle',0,'cardinal'],['Black-capped Chickadee','whistle',0,'chickadee'],['White-throated Sparrow','whistle',0,'sparrow'],
+ ['Tufted Titmouse','whistle',3.0],['Baltimore Oriole','whistle',2.5],['Hermit Thrush','whistle',3.4],['Wood Thrush','whistle',3.0],['Veery','whistle',3.0],
+ ['Eastern Towhee','whistle',3.0],['Eastern Wood-Pewee','whistle',3.6],['Eastern Phoebe','whistle',4.4],['American Woodcock','whistle',2.0],
+ ['House Wren','trill',0,'wren'],['Carolina Wren','trill',3.0],['Chipping Sparrow','trill',5.0],['Dark-eyed Junco','trill',4.5],['Pine Warbler','trill',4.0],
+ ['Swamp Sparrow','trill',3.4],['Downy Woodpecker','trill',4.5],['Common Yellowthroat','trill',3.6],['Ovenbird','trill',4.2],
+ ['Black-throated Blue Warbler','buzz',4.6],['Black-throated Green Warbler','buzz',5.0],['Northern Parula','buzz',5.6],['Yellow Warbler','buzz',5.2],
+ ['American Redstart','buzz',6.0],['Black-and-white Warbler','buzz',6.5],['Magnolia Warbler','buzz',5.0],['Yellow-rumped Warbler','buzz',4.6],
+ ['Blackpoll Warbler','buzz',8.5],['Golden-crowned Kinglet','buzz',8.0],['Brown Creeper','buzz',6.5],['Cedar Waxwing','buzz',7.0],['Blue-gray Gnatcatcher','buzz',5.0],
+ ['Indigo Bunting','buzz',5.5],['Ruby-crowned Kinglet','buzz',5.5],
+].map(([name,type,khz,id])=>{ const real=id?BIRDS.find(b=>b.id===id):null; return {name,type,real,est:!real,khz,id:id||name}; });
+
+const cv=document.getElementById('flock'), cx=cv.getContext('2d');
+const tv=document.getElementById('trail'), tx=tv.getContext('2d');
+const mv=document.getElementById('memory'), mx=mv.getContext('2d');
+let W,H, birds=[], hover=null, hoverFlock=null, FLOCKS=[];
+const P_LO=280, P_HI=9500, INK='#15171b';
+const yOf=hz=>{ const top=H*.12, bot=H*.8; const u=(Math.log(hz)-Math.log(P_LO))/(Math.log(P_HI)-Math.log(P_LO)); return bot-(bot-top)*u; };
+
+function sizeCanvas(){ const dpr=Math.min(1.5,devicePixelRatio||1); W=innerWidth; H=innerHeight;
+  for(const [c,k] of [[cv,cx],[tv,tx],[mv,mx]]){ c.width=W*dpr; c.height=H*dpr; k.setTransform(dpr,0,0,dpr,0,0); } }
+function gauss(){ return Math.sqrt(-2*Math.log(Math.random()+1e-9))*Math.cos(2*Math.PI*Math.random()); }
+const smooth=(a,b,x)=>{ const t=Math.max(0,Math.min(1,(x-a)/(b-a))); return t*t*(3-2*t); };
+
+function placeFlocks(){
+  const sc=Math.min(1.25,Math.max(.6,W/1400)), left=W*.06, right=W*.94, band=(right-left)/TYPES.length;
+  SPECIES.forEach(sp=>{ sp.hz = sp.real ? sp.real.an.pitchHz : sp.khz*1000; });
+  // x: song-type band (neighbouring bands sound more alike), y: pitch
+  SPECIES.forEach(sp=>{ const ti=TYPES.findIndex(t=>t[0]===sp.type); sp.bx=left+band*(ti+.5)+(Math.random()-.5)*band*.7; sp.by=yOf(sp.hz)+(Math.random()-.5)*14; sp.r=48*sc; });
+  for(let it=0;it<300;it++) for(const a of SPECIES) for(const c of SPECIES){ if(a===c) continue;
+    const dx=c.bx-a.bx, dy=(c.by-a.by)*1.6, d=Math.hypot(dx,dy)||1, minD=(a.r+c.r)*.8;
+    if(d<minD){ const push=(minD-d)*.12, ux=dx/d, uy=dy/d; a.bx-=ux*push; c.bx+=ux*push; a.by-=uy*push*.25; c.by+=uy*push*.25; } }
+  SPECIES.forEach(sp=>{ sp.bx=Math.max(40,Math.min(W-40,sp.bx)); sp.by=Math.max(H*.1,Math.min(H*.86,sp.by)); });
+  FLOCKS=SPECIES.map(sp=>({src:sp,kind:'real',bx:sp.bx,by:sp.by,sx:(62+Math.random()*26)*sc,sy:0,ang:-.42+gauss()*.3,w:1,ph:Math.random()*6.28}));
+  FLOCKS.forEach(f=>f.sy=f.sx*(.5+Math.random()*.25));
+}
+
+/* density of the murmuration: soft bodies around every flock, warped and folded by noise */
+function fieldAt(x,y){
+  const wx=x+95*noise3(x/320,y/320,1.7), wy=y+95*noise3(x/320,y/320,4.1);
+  let G=0, best=null, bw=0;
+  for(const f of FLOCKS){ const dx=wx-f.bx, dy=wy-f.by; if(dx>f.sx*3.6||dx<-f.sx*3.6||dy>f.sx*3.6||dy<-f.sx*3.6) continue; const c=Math.cos(f.ang), s=Math.sin(f.ang);
+    const u=(dx*c+dy*s)/f.sx, v=(-dx*s+dy*c)/f.sy, g=f.w*Math.exp(-.5*(u*u+v*v)); G+=g; if(g>bw){bw=g;best=f;} }
+  const sheet=smooth(.34,.48,G+.3*noise3(x/150,y/150,9.3));                 // crisp outer edge
+  const r=noise3(x/260,y/260,5.5), ridge=Math.exp(-((r/.09)**2));          // big folds, where the sheet turns edge-on
+  const r2=noise3(x/110,y/110,2.2), ridge2=Math.exp(-((r2/.07)**2));       // smaller ripples
+  const body=Math.pow(Math.min(1,G),1.6);
+  const cap=1-.95*smooth(200,90,Math.hypot(Math.max(0,x-620)*.6,Math.max(0,H-y-70)));  // keep the caption corner clear
+  const patch=smooth(-.12,.32,noise3(x/210,y/210,3.3));
+  return {d:sheet*cap*(.03+1.0*body*patch+3.6*ridge*(.35+.65*body)+1.3*ridge2*body), f:best};
+}
+
+function buildBirds(){
+  birds=[]; mx.clearRect(0,0,W,H);
+  const cell=9, cols=Math.ceil(W/cell), rows=Math.ceil(H/cell), dens=new Float32Array(cols*rows), own=new Array(cols*rows);
+  for(let j=0;j<rows;j++) for(let i=0;i<cols;i++){ const o=fieldAt(i*cell+4.5,j*cell+4.5), k=j*cols+i; dens[k]=o.d; own[k]=o.f; }
+  const N=Math.round(Math.min(8000,Math.max(4500,W*H/150)));
+  const cdf=new Float32Array(cols*rows); let acc=0, dmax=0; for(let k=0;k<dens.length;k++){ acc+=dens[k]; cdf[k]=acc; if(dens[k]>dmax) dmax=dens[k]; }
+  for(let n=0;n<N;n++){
+    const r=Math.random()*acc; let lo=0,hi=cdf.length-1; while(lo<hi){ const m=(lo+hi)>>1; if(cdf[m]<r) lo=m+1; else hi=m; }
+    const i=lo%cols, j=(lo/cols)|0, f=own[lo]; if(!f) continue;
+    const hx=(i+Math.random())*cell, hy=(j+Math.random())*cell;
+    // size: mostly specks, some dashes, a few small birds, a handful of large ones
+    // dense parts of the flock = tiny specks; spread-out edges = bigger birds
+    const depth=noise3(hx/230,hy/230,7.7), q=Math.random(), sparse=1-Math.min(1,dens[lo]/(dmax*.4));
+    let s, cls;
+    // same mix as the version you liked: specks and small dashes, a rare small bird silhouette
+    if(q<.0035){ s=6+Math.random()*6; cls=3; }
+    else { s=.8+Math.random()*1.3; cls = s<1.3 ? 0 : 1; }
+    const al = cls===3 ? .9 : Math.max(.12,Math.min(1,.55+.55*depth+(Math.random()-.5)*.55));
+    birds.push({f,hx,hy,s,cls,al, lv:LEVELS.findIndex(v=>al<=v),
+      x:-40-Math.random()*240, y:H*(.72+Math.random()*.4), vx:3, vy:-1.2, a:-.4, fa:-.45+gauss()*.3,
+      delay:Math.random()*.8+(hx/W)*1.3, flap:Math.random()*6.28, fr:.25+Math.random()*.12,
+      p1:Math.random()*6.28, p2:Math.random()*6.28, hist:[]});
+  }
+  // a few large birds (real silhouettes from the reference photo) in the open sky only
+  const DECOR={src:null,kind:'decor',bx:0,by:0,ph:1.3,ox:0,oy:0}; FLOCKS.push(DECOR);
+  // supporting birds stay at the edges of the frame, low in visual weight, so the eye lands on the flock first
+  const order=SIL.map((_,i)=>i).sort(()=>Math.random()-.5);
+  const ZONES=[[.03,.16,.05,.2],[.82,.96,.6,.82],[.55,.72,.82,.92],[.88,.97,.38,.52],[.42,.52,.74,.86]];   // top-left, lower right, low centre-right, right edge, low centre
+  const placed=[];
+  for(const [x0,x1,y0,y1] of (W<800?ZONES.slice(0,3):ZONES)){
+    for(let tries=0;tries<300;tries++){
+      const x=W*(x0+(x1-x0)*Math.random()), y=H*(y0+(y1-y0)*Math.random());
+      let clear=true; for(let dy=-5;dy<=5&&clear;dy++) for(let dx=-5;dx<=5;dx++){ const ci=((x/cell)|0)+dx, cj=((y/cell)|0)+dy;
+        if(ci<0||cj<0||ci>=cols||cj>=rows) continue; if(dens[cj*cols+ci]>dmax*.02){ clear=false; break; } }
+      if(!clear) continue;
+    placed.push([x,y]);
+    const sil=SIL[order[placed.length-1]], sc=(.55+Math.random()*.2)*Math.min(1.2,Math.max(.7,W/1400));
+    birds.push({f:DECOR,hx:x,hy:y,sil,sc,flip:Math.random()<.5,tilt:(Math.random()-.5)*.25,decor:true,al:1,
+      x:x-(520+Math.random()*260), y:y+(120+Math.random()*160), vx:4, vy:-1, a:0, fa:0,
+      delay:.3+Math.random()*1.2, flap:Math.random()*6.28, fr:.2+Math.random()*.06, p1:Math.random()*6.28, p2:Math.random()*6.28, hist:[]});
+      break; }
+  }
+
+  // pre-sort into draw buckets: [opacity level][size class]
+  BUCKETS=LEVELS.map(()=>[[],[],[],[]]); DECORB=[]; birds.forEach(p=>{ if(p.decor) DECORB.push(p); else BUCKETS[p.lv][p.cls].push(p); });
+  FLOCKS.forEach(f=>{ const c=birds.filter(p=>p.f===f); f.n=c.length; f.birds=c;
+    if(c.length){ f.mx=c.reduce((a,p)=>a+p.hx,0)/c.length; const ys=c.map(p=>p.hy).sort((a,b)=>a-b); f.top=ys[Math.floor(ys.length*.04)]; } });
+}
+let BUCKETS=[], DECORB=[];
+
+function drawBird(x,y,a,s,flap,alpha){
+  cx.save(); cx.translate(x,y); cx.rotate(a); cx.globalAlpha=alpha;
+  const up=Math.sin(flap), span=s*(.62+.38*Math.abs(Math.cos(flap*.5+.3))), sweep=s*(.25+.2*up);
+  cx.beginPath(); cx.ellipse(-s*.05,0,s*.42,s*.13,0,0,7); cx.fill();
+  cx.beginPath(); cx.arc(s*.36,0,s*.11,0,7); cx.fill();
+  cx.beginPath(); cx.moveTo(-s*.4,0); cx.lineTo(-s*.68,-s*.12); cx.lineTo(-s*.62,0); cx.lineTo(-s*.68,s*.12); cx.closePath(); cx.fill();
+  for(const sg of [-1,1]){ cx.beginPath(); cx.moveTo(s*.12,0);
+    cx.quadraticCurveTo(s*.2,sg*span*.55,-sweep,sg*span); cx.quadraticCurveTo(-s*.05,sg*span*.45,-s*.18,0); cx.closePath(); cx.fill(); }
+  cx.restore();
+}
+
+const isLit=p=>!!hover && p.f.src===hover;
+const LEVELS=[.18,.32,.48,.66,.85,1];
+function pathV(p){ const dx=Math.cos(p.a)*p.s, dy=Math.sin(p.a)*p.s, w=Math.sin(p.flap)*.55;
+  cx.moveTo(p.x-dx-dy*w,p.y-dy+dx*w); cx.lineTo(p.x+dx*.3,p.y+dy*.3); cx.moveTo(p.x-dx+dy*w,p.y-dy-dx*w); cx.lineTo(p.x+dx*.3,p.y+dy*.3); }
+function render(){
+  cx.clearRect(0,0,W,H); cx.fillStyle=INK; cx.strokeStyle=INK; cx.lineCap='round'; cx.lineJoin='round';
+  for(const lit of (hover?[false,true]:[false])){
+    for(let L=0;L<LEVELS.length;L++){
+      cx.globalAlpha = lit ? Math.min(1,LEVELS[L]*1.1+.15) : hover ? LEVELS[L]*.22 : LEVELS[L];
+      const B=BUCKETS[L];
+      // specks
+      cx.lineWidth=1; cx.beginPath(); for(const p of B[0]){ if(hover && isLit(p)!==lit) continue; cx.rect(p.x-p.s*.6,p.y-p.s*.4,p.s*1.2,p.s*.8); } cx.fill(); cx.stroke();
+      // dashes and small birds, line weight grows with size
+      cx.lineWidth=1; cx.beginPath(); for(const p of B[1]){ if(hover && isLit(p)!==lit) continue; pathV(p); } cx.stroke();
+      cx.lineWidth=1.5; cx.beginPath(); for(const p of B[2]){ if(hover && isLit(p)!==lit) continue; pathV(p); } cx.stroke();
+    } }
+  for(const B of BUCKETS) for(const p of B[3]) drawBird(p.x,p.y,p.a,p.s,p.flap, hover && !isLit(p) ? .2 : .9);
+  // large birds: drawn from the photo silhouettes, tilting slightly with their flight
+  cx.fillStyle=INK;
+  for(const p of DECORB){ const sp=Math.hypot(p.vx,p.vy), lean=Math.max(-.35,Math.min(.35,p.vy*.06));
+    // wingbeat: squash the silhouette vertically while flying, ease to a glide as it settles
+    const beat=Math.min(1,sp/1.6)*.42, sy=p.sc*(1-beat*(.5+.5*Math.sin(p.flap)));
+    cx.save(); cx.globalAlpha=hover?.2:.78; cx.translate(p.x,p.y); cx.rotate(p.tilt+lean*Math.min(1,sp/2)); cx.scale(p.flip?-p.sc:p.sc,sy);
+    cx.fill(p.sil.path); cx.restore(); }
+  cx.globalAlpha=1;
+}
+
+/* trails only while flying: each bird remembers a few past positions; pale = where it was */
+const HN=4; let trailsOn=true;
+function drawTrails(){
+  tx.clearRect(0,0,W,H); tx.fillStyle=INK;
+  for(let k=0;k<HN;k++){ tx.globalAlpha=.04+.14*(k/HN); tx.beginPath();
+    for(const p of birds){ const h=p.hist, i=k*2; if(i+1>=h.length) continue; tx.rect(h[i]-.5,h[i+1]-.5,1,1); }
+    tx.fill(); }
+  tx.globalAlpha=1;
+}
+
+/* swirl field sampled on a coarse grid once per frame (instead of per bird) */
+const CG=48; let cgrid=null, cgc=0, cgx0=0, cgy0=0;
+function buildCurlGrid(ft){
+  cgx0=-320; cgy0=-120; cgc=Math.ceil((W+400)/CG)+1; const rws=Math.ceil((H*1.25+160)/CG)+1;
+  if(!cgrid||cgrid.length!==cgc*rws*2) cgrid=new Float32Array(cgc*rws*2);
+  for(let j=0;j<rws;j++) for(let i=0;i<cgc;i++){ const [u,v]=curl((cgx0+i*CG)/260,(cgy0+j*CG)/260,ft); const k=(j*cgc+i)*2; cgrid[k]=u; cgrid[k+1]=v; }
+}
+function curlAt(x,y){ const i=Math.max(0,Math.min(cgc-1,Math.round((x-cgx0)/CG))), j=Math.max(0,Math.round((y-cgy0)/CG)); const k=(j*cgc+i)*2; return [cgrid[k]||0,cgrid[k+1]||0]; }
+
+let mode='intro', tEnter=0, settled=false, tick=0, lastT=0;
+function frame(now){
+  requestAnimationFrame(frame);
+  if(mode!=='home') return;
+  const t=(now-tEnter)/1000; tick++;
+  const fs=Math.min(3,Math.max(.25,(now-(lastT||now-16.7))/16.7));
+  // once settled, the gentle sway only needs ~30 fps
+  if(t>7.5 && tick%2) { return; }
+  lastT=now; const step=fs;
+  const calm=smooth(4,7,t), swirling=t<5.2;
+  if(swirling) buildCurlGrid(t*.14);
+  FLOCKS.forEach(f=>{ f.ox=Math.sin(t*2*Math.PI/10+f.ph)*5*calm; f.oy=Math.cos(t*2*Math.PI/13+f.ph)*3.5*calm; });
+  for(const p of birds){
+    const lt=t-p.delay; if(lt<0) continue;
+    if(p.decor){ // arrive like a bird: cruise, then slow smoothly as it nears its spot
+      const gx=p.hx+Math.sin(t*.35+p.p1)*4*calm, gy=p.hy+Math.cos(t*.3+p.p2)*3*calm;
+      const ddx=gx-p.x, ddy=gy-p.y, d=Math.hypot(ddx,ddy)||1, want=Math.min(4.2, d*.035);
+      const ease=1-Math.pow(1-.045,step);
+      p.vx+=(ddx/d*want-p.vx)*ease; p.vy+=(ddy/d*want-p.vy)*ease;
+      p.x+=p.vx*step; p.y+=p.vy*step;
+      const sp=Math.hypot(p.vx,p.vy); p.flap+=p.fr*Math.min(1,sp/1.2)*step;
+      continue; }
+    const gx=p.hx+p.f.ox+Math.sin(t*.7+p.p1)*1.6*calm, gy=p.hy+p.f.oy+Math.cos(t*.6+p.p2)*1.6*calm;
+    if(lt>4.6){ // arrived: follow the sway directly — cheap
+      const g=1-Math.pow(.86,step); p.x+=(gx-p.x)*g; p.y+=(gy-p.y)*g; p.vx*=.8; p.vy*=.8;
+      let da=p.fa-p.a; da=Math.atan2(Math.sin(da),Math.cos(da)); p.a+=da*.06; p.flap+=(p.glide?.012:.03)*step;
+      if(p.hist.length) p.hist.length=Math.max(0,p.hist.length-2);
+      continue; }
+    const swirl=smooth(3.2,0,lt); let ux=0,uy=0; if(swirl>.01&&swirling){ [ux,uy]=curlAt(p.x,p.y); }
+    const k=.02+.06*smooth(0,3.2,lt);
+    const dx=(gx-p.x)*k+ux*2.1*swirl, dy=(gy-p.y)*k+uy*2.1*swirl;
+    const ease=1-Math.pow(1-(.06+.16*smooth(1.8,4.2,lt)),step);
+    p.vx+=(dx-p.vx)*ease; p.vy+=(dy-p.vy)*ease;
+    const sp=Math.hypot(p.vx,p.vy); if(sp>6){p.vx*=6/sp;p.vy*=6/sp;}
+    p.x+=p.vx*step; p.y+=p.vy*step;
+    const target=sp>1.2?Math.atan2(p.vy,p.vx):p.fa; let da=target-p.a; da=Math.atan2(Math.sin(da),Math.cos(da)); p.a+=da*(.06+.08*Math.min(1,sp/3));
+    p.flap+=p.fr*(.15+.85*Math.min(1,sp/2.5))*step*(p.glide?.6:1);
+    if(tick%2===0 && !p.decor){ p.hist.push(p.x,p.y); if(p.hist.length>HN*2) p.hist.splice(0,2); }
+  }
+  if(t<6.5){ drawTrails(); } else if(trailsOn){ tx.clearRect(0,0,W,H); trailsOn=false; }
+  if(!settled && t>5) settled=true;
+  render(); updateLabel();
+}
+
+/* ---------- hover + click ---------- */
+const lab=document.getElementById('label');
+function pick(x,y){ let best=null,bd=22*22; for(const p of birds){ if(p.f.kind==='decor') continue; const d=(p.x-x)**2+(p.y-y)**2; if(d<bd){bd=d;best=p.f;} } return best; }
+function updateLabel(){ if(!hoverFlock){ lab.style.opacity=0; return; }
+  lab.style.left=Math.max(140,Math.min(W-140,hoverFlock.mx+(hoverFlock.ox||0)))+'px'; lab.style.top=Math.max(120,hoverFlock.top-18)+'px'; lab.style.opacity=1; }
+function texture(b){ const fl=b.an.vec[2]; return fl>-3?'rough, noisy':fl>-7?'breathy, hooting':'pure, whistled'; }
+const typeLabel=t=>TYPES.find(x=>x[0]===t)[1];
+let lastMove=0;
+cv.addEventListener('mousemove',e=>{ if(mode!=='home'||!settled) return; const now=performance.now(); if(now-lastMove<40) return; lastMove=now;
+  const fl=pick(e.clientX,e.clientY); hoverFlock=fl; const h=fl?fl.src:null;
+  if(h!==hover){ hover=h; cv.style.cursor=h?'pointer':'default';
+    if(h){ const hz=h.hz, pw=hz<900?'low':hz<2800?'middle':'high';
+      lab.querySelector('.n').textContent=h.name;
+      if(h.real){ const r=h.real; lab.querySelector('.d').innerHTML=`${(hz/1000).toFixed(1)} kHz · ${pw} pitch · ${r.an.dur.toFixed(1)} s · ${r.an.onsets} note${r.an.onsets>1?'s':''} · ${texture(r)}`.replace(/(^|<br>)([a-z])/g,(m,p,c)=>p+c.toUpperCase());
+        lab.querySelector('.m').textContent='Click to hear'; }
+      else { lab.querySelector('.d').innerHTML=`~${(hz/1000).toFixed(1)} kHz · ${pw} pitch · ${typeLabel(h.type)}`;
+        lab.querySelector('.m').textContent='Click to hear · stand-in call'; } } } });
+cv.addEventListener('mouseleave',()=>{ hover=null; hoverFlock=null; });
+cv.addEventListener('click',e=>{ if(mode!=='home'||!settled) return; const fl=pick(e.clientX,e.clientY); if(!fl) return;
+  if(window.onFlockClick) window.onFlockClick(fl.src.real || standIn(fl.src)); });
+
+
+/* ---------- line-drawn bird portraits (sky-blue ink), generated per species ---------- */
+// Each bird's outline is the union of simple shapes (body, head, tail, bill, crest…),
+// traced by casting rays from the body centre, smoothed, then drawn as one clean line.
+const ART_INK='#1c2633';
+const D2R=Math.PI/180;
+function rotP(x,y,a){ const c=Math.cos(a*D2R), s=Math.sin(a*D2R); return [x*c-y*s, x*s+y*c]; }
+function ell(cx,cy,rx,ry,rot=0){ return {t:'e',cx,cy,rx,ry,rot}; }
+function poly(pts){ return {t:'p',pts}; }
+function rayExit(sh,ox,oy,dx,dy){
+  if(sh.t==='e'){ // transform ray into ellipse frame
+    const c=Math.cos(-sh.rot*D2R), s=Math.sin(-sh.rot*D2R);
+    let px=ox-sh.cx, py=oy-sh.cy; [px,py]=[px*c-py*s, px*s+py*c]; const qx=dx*c-dy*s, qy=dx*s+dy*c;
+    const A=qx*qx/(sh.rx*sh.rx)+qy*qy/(sh.ry*sh.ry), B=2*(px*qx/(sh.rx*sh.rx)+py*qy/(sh.ry*sh.ry)), C=px*px/(sh.rx*sh.rx)+py*py/(sh.ry*sh.ry)-1;
+    const D=B*B-4*A*C; if(D<0) return -1; const t=(-B+Math.sqrt(D))/(2*A); return t>0?t:-1;
+  }
+  let best=-1; const P=sh.pts;
+  for(let i=0;i<P.length;i++){ const [x1,y1]=P[i], [x2,y2]=P[(i+1)%P.length], ex=x2-x1, ey=y2-y1, den=dx*ey-dy*ex; if(Math.abs(den)<1e-9) continue;
+    const t=((x1-ox)*ey-(y1-oy)*ex)/den, u=((x1-ox)*dy-(y1-oy)*dx)/den; if(t>0&&u>=0&&u<=1&&t>best) best=t; }
+  return best;
+}
+function outline(shapes,ox,oy,N=540,smoothW=2){
+  const r=new Float64Array(N);
+  for(let i=0;i<N;i++){ const a=i/N*2*Math.PI, dx=Math.cos(a), dy=Math.sin(a); let m=0; for(const s of shapes){ const t=rayExit(s,ox,oy,dx,dy); if(t>m) m=t; } r[i]=m; }
+  const rs=new Float64Array(N); for(let i=0;i<N;i++){ let a=0,w=0; for(let k=-smoothW;k<=smoothW;k++){ const ww=1+smoothW-Math.abs(k); a+=r[(i+k+N)%N]*ww; w+=ww; } rs[i]=Math.min(r[i],a/w)*.35+a/w*.65; }
+  const pts=[]; for(let i=0;i<N;i+=2){ const a=i/N*2*Math.PI; pts.push([ox+Math.cos(a)*rs[i], oy+Math.sin(a)*rs[i]]); }
+  return pts;
+}
+function smoothPath(pts,closed=true){ // Catmull-Rom → cubic Bézier
+  const n=pts.length, P=i=>pts[closed?(i+n)%n:Math.max(0,Math.min(n-1,i))]; let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for(let i=0;i<(closed?n:n-1);i++){ const p0=P(i-1),p1=P(i),p2=P(i+1),p3=P(i+2);
+    d+=`C${(p1[0]+(p2[0]-p0[0])/6).toFixed(1)},${(p1[1]+(p2[1]-p0[1])/6).toFixed(1)} ${(p2[0]-(p3[0]-p1[0])/6).toFixed(1)},${(p2[1]-(p3[1]-p1[1])/6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`; }
+  return d+(closed?'Z':'');
+}
+const L=(pts)=>smoothPath(pts,false);
+function billPath(hx,hy,hr,ang,len,depth,curve){ // ang: facing direction in degrees
+  const f=rotP(1,0,ang), n=[-f[1],f[0]], bx=hx+f[0]*hr*.82, by=hy+f[1]*hr*.82, d=depth/2;
+  const tip=[bx+f[0]*len+n[0]*curve*len*.5, by+f[1]*len+n[1]*curve*len*.5];
+  const top=[bx-n[0]*d, by-n[1]*d], bot=[bx+n[0]*d, by+n[1]*d];
+  const mid=[bx+f[0]*len*.55+n[0]*curve*len*.2, by+f[1]*len*.55+n[1]*curve*len*.2];
+  return `<path d="M${top[0].toFixed(1)},${top[1].toFixed(1)} Q${(mid[0]-n[0]*d*.55).toFixed(1)},${(mid[1]-n[1]*d*.55).toFixed(1)} ${tip[0].toFixed(1)},${tip[1].toFixed(1)} Q${(mid[0]+n[0]*d*.45).toFixed(1)},${(mid[1]+n[1]*d*.45).toFixed(1)} ${bot[0].toFixed(1)},${bot[1].toFixed(1)}"/>`+
+         `<path class="d" d="M${bx.toFixed(1)},${by.toFixed(1)} L${(bx+(tip[0]-bx)*.62).toFixed(1)},${(by+(tip[1]-by)*.62).toFixed(1)}"/>`;
+}
+
+// species → drawing recipe
+const ART_KIND={
+ 'Great Horned Owl':['owl',{tufts:14,size:1.1}],'Barred Owl':['owl',{tufts:0,size:1.05,bars:1}],'Eastern Screech-Owl':['owl',{tufts:8,size:.85}],
+ 'Mourning Dove':['dove',{}],'Rock Pigeon':['dove',{size:1.08,tail:.75,head:1.12}],
+ 'Canada Goose':['goose',{}],'Mallard':['duck',{}],'Black-crowned Night-Heron':['heron',{}],
+ 'Blue Jay':['song',{size:1.1,crest:15,tail:1.2,bill:[14,7,0]}],'Northern Cardinal':['song',{size:1,crest:17,bill:[11,10,0],mask:1}],
+ 'Tufted Titmouse':['song',{size:.82,crest:11,bill:[7,5,0]}],'Cedar Waxwing':['song',{size:.95,crest:13,bill:[8,5,0],mask:1,tail:.85}],
+ 'Great Crested Flycatcher':['song',{size:.98,crest:7,bill:[13,6,0],upright:12,tail:1.1}],
+ 'American Crow':['song',{size:1.32,bill:[22,10,.2],tail:1.05,legs:1.1}],'Fish Crow':['song',{size:1.22,bill:[19,9,.2],tail:1}],
+ 'Common Grackle':['song',{size:1.12,bill:[18,7,.15],tail:1.55}],'European Starling':['song',{size:.98,bill:[16,5,0],tail:.6}],
+ 'Brown-headed Cowbird':['song',{size:.95,bill:[11,8,0],tail:.95}],'Red-winged Blackbird':['song',{size:1,bill:[15,6,0],tail:1,epaulet:1}],
+ 'House Wren':['wren',{}],'Carolina Wren':['wren',{size:1.12,brow:1}],'Blue-gray Gnatcatcher':['wren',{size:.8,tail:1.5,cock:-10}],
+ 'Northern Flicker':['wood',{size:1.15,bill:[15,5,.15]}],'Red-bellied Woodpecker':['wood',{size:1.05}],'Downy Woodpecker':['wood',{size:.8,bill:[9,5,0]}],
+ 'White-breasted Nuthatch':['nuthatch',{}],'Red-breasted Nuthatch':['nuthatch',{size:.85,brow:1}],'Brown Creeper':['creeper',{}],
+ 'Belted Kingfisher':['kingfisher',{}],'Red-tailed Hawk':['hawk',{}],'American Woodcock':['woodcock',{}],
+ 'American Robin':['song',{size:1.18,bill:[13,6,0],tail:1.15,upright:10}],'Gray Catbird':['song',{size:1.05,bill:[12,5,0],tail:1.3,cap:1}],
+ 'Northern Mockingbird':['song',{size:1.12,bill:[13,5,.1],tail:1.6,upright:6}],'Brown Thrasher':['song',{size:1.18,bill:[18,5,.35],tail:1.7}],
+ 'Hermit Thrush':['song',{size:.98,bill:[11,5,0],tail:1,upright:12,spots:1}],'Wood Thrush':['song',{size:1.05,bill:[12,5,0],tail:.95,upright:10,spots:1}],
+ 'Veery':['song',{size:.98,bill:[11,5,0],tail:1,upright:10}],
+ 'Song Sparrow':['song',{size:.9,bill:[9,7,0],tail:1.15,streaks:1}],'Swamp Sparrow':['song',{size:.85,bill:[8,6,0],tail:1.1}],
+ 'Chipping Sparrow':['song',{size:.78,bill:[7,5,0],tail:1.1,cap:1}],'White-throated Sparrow':['song',{size:.92,bill:[9,7,0],tail:1.1,brow:1}],
+ 'House Sparrow':['song',{size:.92,bill:[9,8,0],tail:.95}],'Dark-eyed Junco':['song',{size:.88,bill:[8,7,0],tail:1.1,hood:1}],
+ 'Eastern Towhee':['song',{size:1.05,bill:[10,8,0],tail:1.45,hood:1}],
+ 'House Finch':['song',{size:.86,bill:[8,8,0],tail:1}],'Purple Finch':['song',{size:.88,bill:[9,8,0],tail:.95}],
+ 'American Goldfinch':['song',{size:.76,bill:[7,6,0],tail:.95,cap:1}],'Rose-breasted Grosbeak':['song',{size:1.02,bill:[13,13,0],tail:1}],
+ 'Indigo Bunting':['song',{size:.78,bill:[8,7,0],tail:1}],'Scarlet Tanager':['song',{size:.98,bill:[11,8,0],tail:.95}],
+ 'Baltimore Oriole':['song',{size:1,bill:[14,6,0],tail:1.05,hood:1}],
+ 'Red-eyed Vireo':['song',{size:.85,bill:[10,5,0],tail:.9,brow:1}],'Warbling Vireo':['song',{size:.8,bill:[9,5,0],tail:.9,brow:1}],
+ 'Eastern Wood-Pewee':['song',{size:.85,bill:[10,5,0],tail:1.1,upright:22}],'Eastern Phoebe':['song',{size:.9,bill:[10,5,0],tail:1.25,upright:20,cap:1}],
+ 'Eastern Kingbird':['song',{size:1,bill:[12,6,0],tail:1,upright:18,cap:1}],
+ 'Black-capped Chickadee':['song',{size:.75,bill:[6,5,0],tail:1.1,cap:1,bib:1,head:1.12}],
+ 'Golden-crowned Kinglet':['song',{size:.62,bill:[5,3,0],tail:.85,cap:1,head:1.1}],'Ruby-crowned Kinglet':['song',{size:.62,bill:[5,3,0],tail:.85,eyering:1,head:1.1}],
+ 'Pine Warbler':['song',{size:.76,bill:[8,4,0],tail:1}],'Common Yellowthroat':['song',{size:.72,bill:[8,4,0],tail:1,mask:1}],
+ 'Ovenbird':['song',{size:.8,bill:[8,4,0],tail:.85,cap:1,spots:1,eyering:1}],
+ 'Black-throated Blue Warbler':['song',{size:.74,bill:[8,4,0],tail:1,mask:1}],'Black-throated Green Warbler':['song',{size:.72,bill:[8,4,0],tail:1,bib:1}],
+ 'Northern Parula':['song',{size:.66,bill:[7,4,0],tail:.8,eyering:1}],'Yellow Warbler':['song',{size:.72,bill:[8,4,0],tail:.95,streaks:1}],
+ 'American Redstart':['song',{size:.74,bill:[7,4,0],tail:1.35}],'Black-and-white Warbler':['song',{size:.74,bill:[10,4,.1],tail:1,streaks:1}],
+ 'Magnolia Warbler':['song',{size:.72,bill:[7,4,0],tail:1.05,streaks:1}],'Yellow-rumped Warbler':['song',{size:.78,bill:[8,4,0],tail:1.05,streaks:1}],
+ 'Blackpoll Warbler':['song',{size:.76,bill:[8,4,0],tail:1,cap:1,streaks:1}],
+};
+
+function perch(y, x0=-78, x1=82){ // a slim branch with a twig and two leaves
+  return [`<path d="${L([[x0,y+2],[x0+40,y],[x0+90,y+1],[x1,y-3]])}"/>`,
+          `<path d="${L([[x1-36,y-1],[x1-26,y-11],[x1-14,y-17]])}"/>`,
+          `<path d="M${x1-14},${y-17}c6,-6 14,-6 16,-2c-6,4 -12,5 -16,2Z"/>`,
+          `<path d="M${x0+22},${y+1}c-2,7 2,13 7,14c1,-6 -2,-11 -7,-14Z"/>`].join('');
+}
+function legs(x,y,len,ground){ return `<path d="M${x-3},${y} L${x-5},${ground} M${x+4},${y} L${x+4},${ground} M${x-9},${ground} L${x+1},${ground} M${x-1},${ground} L${x+9},${ground}"/>`; }
+
+function songbird(o){
+  const s=o.size||1, up=o.upright||0, tilt=-(24+up), a=33*s, b=19*s, hr=13*s*(o.head||1), T=(30*s)*(o.tail||1), cock=o.cock;
+  const ox=0, oy=6, R=(x,y)=>{ const [u,v]=rotP(x,y,tilt); return [ox+u,oy+v]; };
+  const [hx,hy]=R(a*.78,-b*.78);
+  const [bl,bd,bc]=o.bill||[9,6,0], BL=bl*s*.9, BD=bd*s*.85;
+  const tailAng = cock!==undefined ? cock : 14;           // degrees below the body axis (negative = cocked up)
+  const tb=R(-a*.72,-b*.05), tdir=rotP(-1,0,tilt-tailAng), tw=5.5*s;
+  const tip=[tb[0]+tdir[0]*T, tb[1]+tdir[1]*T], nrm=[-tdir[1],tdir[0]];
+  const shapes=[ell(ox,oy,a,b,tilt), ell(hx,hy,hr,hr*.96,0),
+    poly([R(-a*.55,-b*.42),[tip[0]+nrm[0]*tw,tip[1]+nrm[1]*tw],[tip[0]-nrm[0]*tw,tip[1]-nrm[1]*tw],R(-a*.5,b*.3)]),
+    ell(...R(a*.45,-b*.55),hr*.95,hr*.8,tilt)];
+  if(o.crest) shapes.push(poly([[hx+hr*.2,hy-hr*.9],[hx-hr*.95,hy-hr-o.crest*s],[hx-hr*.98,hy-hr*.1]]));
+  const out=outline(shapes,ox,oy);
+  const g=[`<path d="${smoothPath(out)}"/>`, billPath(hx,hy,hr,2+bc*10,BL+2,BD,bc)];
+  // wing
+  const w0=R(a*.42,-b*.62), w1=R(-a*.15,b*.25), w2=R(-a*.98,b*.02);
+  g.push(`<path class="d" d="${L([w0,R(a*.1,-b*.05),w1,R(-a*.6,b*.22),w2])}"/>`);
+  g.push(`<path class="d" d="${L([R(-a*.15,b*.25),R(-a*.5,-b*.25),R(-a*.95,-b*.2)])}"/>`);
+  for(let k=0;k<3;k++){ const p=R(-a*(.58+k*.13),b*(.12-k*.02)); g.push(`<path class="d" d="M${p[0].toFixed(1)},${p[1].toFixed(1)} l${(-5*s).toFixed(1)},${(-3*s).toFixed(1)}"/>`); }
+  g.push(`<path class="d" d="M${tb[0].toFixed(1)},${tb[1].toFixed(1)} L${(tb[0]+tdir[0]*T*.9).toFixed(1)},${(tb[1]+tdir[1]*T*.9).toFixed(1)}"/>`);
+  // eye
+  g.push(`<circle class="f" cx="${(hx+hr*.32).toFixed(1)}" cy="${(hy-hr*.18).toFixed(1)}" r="${(1.9*s+.6).toFixed(1)}"/>`);
+  if(o.eyering) g.push(`<circle class="d" cx="${(hx+hr*.32).toFixed(1)}" cy="${(hy-hr*.18).toFixed(1)}" r="${(3.8*s).toFixed(1)}"/>`);
+  if(o.cap) g.push(`<path class="d" d="${L([[hx+hr*.55,hy-hr*.55],[hx,hy-hr*.42],[hx-hr*.75,hy-hr*.25]])}"/>`);
+  if(o.brow) g.push(`<path class="d" d="${L([[hx+hr*.6,hy-hr*.45],[hx+hr*.05,hy-hr*.52],[hx-hr*.6,hy-hr*.3]])}"/>`);
+  if(o.mask) g.push(`<path class="d" d="${L([[hx+hr*.75,hy-hr*.3],[hx+hr*.2,hy+hr*.05],[hx-hr*.15,hy+hr*.15]])}"/>`);
+  if(o.hood) g.push(`<path class="d" d="${L([[hx-hr*.8,hy+hr*.2],[hx-hr*.1,hy+hr*.95],[hx+hr*.55,hy+hr*.8]])}"/>`);
+  if(o.bib) g.push(`<path class="d" d="${L([[hx+hr*.55,hy+hr*.55],[hx+hr*.05,hy+hr*1.15],[hx-hr*.35,hy+hr*.75]])}"/>`);
+  if(o.epaulet) { const p=R(a*.25,-b*.35); g.push(`<path class="d" d="M${p[0].toFixed(1)},${p[1].toFixed(1)} c-6,2 -10,6 -11,9"/>`); }
+  if(o.spots||o.streaks) for(let k=0;k<7;k++){ const p=R(a*(.55-(k%4)*.14),b*(.15+Math.floor(k/4)*.3)); g.push(o.spots?`<circle class="f" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(1.1*s+.3).toFixed(1)}"/>`:`<path class="d" d="M${p[0].toFixed(1)},${p[1].toFixed(1)} l-1.5,4"/>`); }
+  // legs + branch
+  const feet=R(a*.08,b*.98), ground=Math.max(feet[1]+8*s*(o.legs||1),oy+b+10);
+  g.push(legs(feet[0],feet[1]-1,0,ground), perch(ground+1));
+  return g.join('');
+}
+function wren(o){ return songbird({size:o.size||.82,bill:[11,4,.25],tail:o.tail||.95,cock:o.cock!==undefined?o.cock:-72,brow:o.brow,upright:4}); }
+
+function woodpecker(o, variant){ // clinging upright on a trunk at left
+  let s=o.size||1; const g=[], trunkX=-40;
+  g.push(`<path d="M${trunkX-26},-96 C${trunkX-22},-30 ${trunkX-28},40 ${trunkX-24},98"/><path d="M${trunkX+2},-96 C${trunkX+6},-40 ${trunkX},30 ${trunkX+4},98"/>`);
+  for(let k=0;k<7;k++){ const y=-80+k*26; g.push(`<path class="d" d="M${trunkX-18},${y} q4,6 0,12"/>`); }
+  s*=1.28; const tilt=variant==='nuthatch'? 100 : -76, a=30*s, b=15*s, hr=11*s, ox=trunkX+4+b, oy=variant==='nuthatch'?-2:8;
+  const R=(x,y)=>{ const [u,v]=rotP(x,y,tilt); return [ox+u,oy+v]; };
+  const [hx,hy]=R(a*.85,-b*.4);
+  const bill=o.bill||[13,5,0], BL=bill[0]*s, BD=bill[1]*s, curve=variant==='creeper'?.45:(bill[2]||0);
+  const dir=rotP(1,0,tilt+(variant==='nuthatch'?-25:35)), tipx=hx+dir[0]*(hr*.75+BL), tipy=hy+dir[1]*(hr*.75+BL)+curve*BL*.6;
+  const nx=-dir[1], ny=dir[0], bx=hx+dir[0]*hr*.7, by=hy+dir[1]*hr*.7;
+  const tb=R(-a*.85,0), td=rotP(-1,0,tilt-8), T=(variant==='nuthatch'?14:26)*s;
+  const bang=Math.atan2(dir[1],dir[0])/D2R;
+  const shapes=[ell(ox,oy,a,b,tilt), ell(hx,hy,hr,hr,0),
+    poly([R(-a*.6,-b*.6),[tb[0]+td[0]*T-3,tb[1]+td[1]*T],[tb[0]+td[0]*T+3,tb[1]+td[1]*T+2],R(-a*.6,b*.6)])];
+  g.push(`<path d="${smoothPath(outline(shapes,ox,oy))}"/>`, billPath(hx,hy,hr,bang,BL,BD,curve));
+  g.push(`<circle class="f" cx="${(hx+dir[0]*hr*.25+nx*hr*.2).toFixed(1)}" cy="${(hy+dir[1]*hr*.25+ny*hr*.2).toFixed(1)}" r="${(1.9*s+.5).toFixed(1)}"/>`);
+  const w0=R(a*.45,-b*.7), w1=R(-a*.2,-b*.55), w2=R(-a*.9,-b*.2);
+  g.push(`<path class="d" d="${L([w0,w1,w2])}"/>`);
+  for(let k=0;k<4;k++){ const p=R(-a*(.1+k*.18),-b*.15); g.push(`<path class="d" d="M${p[0].toFixed(1)},${p[1].toFixed(1)} l2,3"/>`); }
+  return g.join('');
+}
+
+function owl(o){
+  const s=o.size||1, g=[], tufts=o.tufts||0;
+  const shapes=[ell(0,14*s,30*s,38*s), ell(0,-26*s,25*s,22*s)];
+  if(tufts){ shapes.push(poly([[-20*s,-36*s],[-24*s,(-48-tufts)*s],[-10*s,-44*s]]), poly([[20*s,-36*s],[24*s,(-48-tufts)*s],[10*s,-44*s]])); }
+  g.push(`<path d="${smoothPath(outline(shapes,0,0))}"/>`);
+  g.push(`<path class="d" d="${L([[-19*s,-34*s],[-24*s,-18*s],[-12*s,-6*s],[0,-10*s],[12*s,-6*s],[24*s,-18*s],[19*s,-34*s]])}"/>`);
+  for(const sx of [-1,1]){ g.push(`<circle class="d" cx="${sx*10*s}" cy="${-25*s}" r="${6.5*s}"/><circle class="f" cx="${sx*10*s}" cy="${-25*s}" r="${2.6*s}"/>`); }
+  g.push(`<path d="M${-3*s},${-18*s} L0,${-11*s} L${3*s},${-18*s}"/>`);
+  for(let r=0;r<4;r++) for(let c=-2;c<=2;c++){ if(Math.abs(c)+r>4) continue; const x=c*9*s, y=(6+r*10)*s;
+    g.push(o.bars?`<path class="d" d="M${x-3*s},${y} l${6*s},0"/>`:`<path class="d" d="M${x-3*s},${y} l${3*s},${3*s} l${3*s},${-3*s}"/>`); }
+  g.push(`<path class="d" d="${L([[-28*s,0],[-30*s,24*s],[-20*s,46*s]])}"/><path class="d" d="${L([[28*s,0],[30*s,24*s],[20*s,46*s]])}"/>`);
+  const gy=52*s+4; g.push(`<path d="M${-8*s},${50*s} l-2,${gy-50*s} M${8*s},${50*s} l2,${gy-50*s}"/>`, perch(gy));
+  return g.join('');
+}
+function dove(o){
+  const s=o.size||1, tilt=-6, a=36*s, b=17*s, hr=9.5*s*(o.head||1), ox=6, oy=10;
+  const R=(x,y)=>{ const [u,v]=rotP(x,y,tilt); return [ox+u,oy+v]; };
+  const [hx,hy]=R(a*.92,-b*1.15), tb=R(-a*.8,-b*.05), T=44*s*(o.tail||1), td=rotP(-1,0,tilt+10), tip=[tb[0]+td[0]*T,tb[1]+td[1]*T];
+  const shapes=[ell(ox,oy,a,b,tilt), ell(hx,hy,hr,hr,0), ell(...R(a*.7,-b*.75),hr*.9,hr*1.2,-30),
+    poly([R(-a*.6,-b*.5),[tip[0],tip[1]-2],[tip[0]+1,tip[1]+3],R(-a*.6,b*.4)]), poly([[hx+hr*.8,hy-1.6],[hx+hr*.8+7*s,hy+.6],[hx+hr*.8,hy+2]])];
+  const g=[`<path d="${smoothPath(outline(shapes,ox,oy))}"/>`];
+  g.push(`<path class="d" d="${L([R(a*.4,-b*.7),R(0,-b*.2),R(-a*.6,b*.15),R(-a*1.05,b*.05)])}"/>`);
+  for(const [x,y] of [[-.05,-.35],[-.25,-.25],[-.42,-.4]]){ const p=R(a*x,b*y); g.push(`<circle class="f" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.6"/>`); }
+  g.push(`<circle class="f" cx="${(hx+hr*.25).toFixed(1)}" cy="${(hy-hr*.15).toFixed(1)}" r="1.8"/>`);
+  const f=R(a*.1,b*.95), ground=f[1]+9; g.push(legs(f[0],f[1]-1,0,ground), perch(ground+1));
+  return g.join('');
+}
+function waterfowl(o,goose){
+  const s=1, a=goose?40:36, b=goose?17:16, ox=goose?-6:-4, oy=goose?28:20, g=[];
+  const neckTop=goose?[30,-44]:[26,-14], hr=goose?9:11;
+  const shapes=[ell(ox,oy,a,b,-4), poly([[-a-2,oy-6],[-a-14,oy-14],[-a-6,oy+4]]),
+    goose? ell(22,-14,6.5,32,14) : ell(20,4,9,14,18), ell(neckTop[0],neckTop[1],hr,hr*.92,0),
+    poly([[neckTop[0]+hr*.7,neckTop[1]-2.5],[neckTop[0]+hr*.7+(goose?13:15),neckTop[1]+(goose?.5:1)],[neckTop[0]+hr*.7+(goose?12:14),neckTop[1]+4],[neckTop[0]+hr*.7,neckTop[1]+3.5]])];
+  g.push(`<path d="${smoothPath(outline(shapes,ox,oy))}"/>`);
+  g.push(`<path class="d" d="${L([[ox+a*.4,oy-b*.6],[ox,oy-b*.2],[ox-a*.6,oy-b*.1],[ox-a*.95,oy-b*.4]])}"/>`);
+  g.push(`<circle class="f" cx="${neckTop[0]+hr*.25}" cy="${neckTop[1]-hr*.2}" r="1.9"/>`);
+  if(goose) g.push(`<path class="d" d="${L([[neckTop[0]-hr*.6,neckTop[1]+hr*.1],[neckTop[0]-hr*.1,neckTop[1]+hr*.85],[neckTop[0]+hr*.5,neckTop[1]+hr*.5]])}"/>`);
+  else g.push(`<path class="d" d="${L([[neckTop[0]-hr*.9,neckTop[1]+hr*1.3],[neckTop[0],neckTop[1]+hr*1.55],[neckTop[0]+hr*.8,neckTop[1]+hr*1.1]])}"/>`);
+  const wy=oy+b*.55; g.push(`<path d="M-88,${wy} C-50,${wy-3} -20,${wy+3} 10,${wy} S60,${wy-3} 88,${wy+1}"/>`, `<path class="d" d="M-60,${wy+12} q20,-4 40,0 M10,${wy+16} q22,-4 44,0"/>`);
+  return g.join('');
+}
+function heron(){
+  const ox=-6, oy=4, a=34, b=21, tilt=-18, R=(x,y)=>{ const [u,v]=rotP(x,y,tilt); return [ox+u,oy+v]; };
+  const [hx,hy]=R(a*.85,-b*.95), hr=14;
+  const shapes=[ell(ox,oy,a,b,tilt), ell(hx,hy,hr,hr*.9,0), ell(...R(a*.55,-b*.5),hr,hr*.85,tilt),
+    poly([[hx+hr*.7,hy-3],[hx+hr*.7+26,hy+1],[hx+hr*.7,hy+4]]), poly([R(-a*.7,-b*.4),R(-a*1.25,b*.1),R(-a*.6,b*.5)])];
+  const g=[`<path d="${smoothPath(outline(shapes,ox,oy))}"/>`];
+  g.push(`<circle class="f" cx="${hx+hr*.35}" cy="${hy-hr*.2}" r="2.2"/>`, `<path class="d" d="${L([[hx-hr*.4,hy-hr*.8],[hx-hr*1.4,hy-hr*.4],[hx-hr*2.4,hy+hr*.3]])}"/>`);
+  g.push(`<path class="d" d="${L([R(a*.4,-b*.6),R(-a*.1,-b*.1),R(-a*.95,b*.15)])}"/>`);
+  const f=R(0,b*.98); g.push(`<path d="M${f[0]-4},${f[1]} L${f[0]-6},${f[1]+30} M${f[0]+5},${f[1]} L${f[0]+6},${f[1]+30}"/>`, `<path d="M-88,${f[1]+31} C-40,${f[1]+29} 30,${f[1]+33} 88,${f[1]+30}"/>`, `<path class="d" d="M${f[0]-16},${f[1]+31} l10,0 M${f[0]-2},${f[1]+31} l12,0"/>`);
+  return g.join('');
+}
+function hawk(){
+  const ox=0, oy=2, a=36, b=20, tilt=-70, R=(x,y)=>{ const [u,v]=rotP(x,y,tilt); return [ox+u,oy+v]; };
+  const [hx,hy]=R(a*.9,-b*.15), hr=15, tb=R(-a*.85,0), td=rotP(-1,0,tilt-4), T=32, tip=[tb[0]+td[0]*T,tb[1]+td[1]*T];
+  const shapes=[ell(ox,oy,a,b,tilt), ell(hx,hy,hr,hr*.92,0), poly([R(-a*.6,-b*.7),[tip[0]-9,tip[1]],[tip[0]+9,tip[1]],R(-a*.6,b*.7)]),
+    poly([[hx+hr*.7,hy-4],[hx+hr*.7+9,hy-1],[hx+hr*.7+8,hy+6],[hx+hr*.7+4,hy+2],[hx+hr*.7,hy+4]])];
+  const g=[`<path d="${smoothPath(outline(shapes,ox,oy))}"/>`];
+  g.push(`<circle class="f" cx="${hx+hr*.3}" cy="${hy-hr*.2}" r="2.3"/>`, `<path class="d" d="${L([[hx+hr*.55,hy-hr*.55],[hx+hr*.1,hy-hr*.4],[hx-hr*.3,hy-hr*.55]])}"/>`);
+  g.push(`<path class="d" d="${L([R(a*.6,-b*.95),R(0,-b*.9),R(-a*.95,-b*.5)])}"/>`);
+  for(let r=0;r<3;r++) for(let c=0;c<3;c++){ const p=R(a*(.35-r*.2),b*(.2+c*.22)); g.push(`<path class="d" d="M${p[0].toFixed(1)},${p[1].toFixed(1)} l2,2.5"/>`); }
+  const f=R(-a*.35,b*.6); const ground=f[1]+12; g.push(legs(f[0]+2,f[1],0,ground), perch(ground+1));
+  return g.join('');
+}
+function kingfisher(){
+  return songbird({size:1.05,bill:[22,8,0],tail:.65,crest:12,head:1.3,upright:6});
+}
+function woodcock(){
+  return songbird({size:1.05,bill:[28,4,.05],tail:.45,head:1.1,upright:-6,legs:.6});
+}
+
+function birdSVG(name){
+  const [kind,o]=ART_KIND[name]||['song',{}];
+  let inner;
+  if(kind==='song') inner=songbird(o); else if(kind==='wren') inner=wren(o); else if(kind==='owl') inner=owl(o);
+  else if(kind==='dove') inner=dove(o); else if(kind==='duck') inner=waterfowl(o,false); else if(kind==='goose') inner=waterfowl(o,true);
+  else if(kind==='heron') inner=heron(); else if(kind==='hawk') inner=hawk(); else if(kind==='kingfisher') inner=kingfisher(); else if(kind==='woodcock') inner=woodcock();
+  else inner=woodpecker(o, kind==='nuthatch'?'nuthatch':kind==='creeper'?'creeper':'wood');
+  return `<svg viewBox="-100 -100 200 200" xmlns="http://www.w3.org/2000/svg" class="art">
+    <style>.art path{fill:none;stroke:${ART_INK};stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+    .art path.d{stroke-width:1.05;opacity:.85}.art circle.d{fill:none;stroke:${ART_INK};stroke-width:1}.art .f{fill:${ART_INK};stroke:none}</style>
+    <g transform="translate(0,-4) scale(.82)">${inner}</g></svg>`;
+}
+
+/* ---------- stand-in calls for species without a recording (built from song type + typical pitch) ---------- */
+function standIn(sp){
+  if(sp.bird) return sp.bird;
+  seed=[...sp.name].reduce((a,c)=>a+c.charCodeAt(0),0)*97+11;
+  const f=sp.khz*1000, R=()=>rand(); let o;
+  if(sp.type==='hoot'){ o=new Float32Array(2.6*SR); const n=3+Math.floor(R()*2);
+    for(let k=0;k<n;k++) note(o,.12+k*.55,.32+R()*.15,lin(f*1.08,f*.95),.85,{harm:[1,.3,.1],attack:.06,release:.12}); }
+  else if(sp.type==='harsh'){ o=new Float32Array(1.6*SR); const n=2+Math.floor(R()*2);
+    for(let k=0;k<n;k++) note(o,.1+k*.45,.28,u=>f*(.9+.25*Math.sin(Math.PI*u)),1,{harm:[1,.7,.5,.3],noise:.5,attack:.01}); }
+  else if(sp.type==='warble'){ o=new Float32Array(2.2*SR); let t=.08;
+    for(let k=0;k<8;k++){ if(k===4){t+=.2;continue;} const a=f*(.8+R()*.45), b=f*(.8+R()*.45); note(o,t,.16,lin(a,b),.85,{harm:[1,.3,.1],vib:.03,vibRate:40}); t+=.24; } }
+  else if(sp.type==='whistle'){ o=new Float32Array(2.2*SR); const n=2+Math.floor(R()*2);
+    for(let k=0;k<n;k++){ const a=f*(1.1-k*.08), b=a*(R()<.5?.82:1.02); note(o,.1+k*.62,.48,lin(a,b),.9,{harm:[1,.04],attack:.05}); } }
+  else if(sp.type==='trill'){ o=new Float32Array(2.0*SR); const n=14+Math.floor(R()*8), gap=1.7/n;
+    for(let k=0;k<n;k++){ const e=Math.sin(Math.PI*(k+1)/(n+1)); note(o,.1+k*gap,gap*.7,lin(f*1.05,f*.92),.45+.55*e,{harm:[1,.25],attack:.006,release:.015}); } }
+  else { o=new Float32Array(1.8*SR); const n=2+Math.floor(R()*2);
+    for(let k=0;k<n;k++) note(o,.1+k*.55,.42,lin(f*.92,f*1.12),.85,{harm:[1,.35],noise:.25,buzz:55,vib:.05,vibRate:55,release:.12}); }
+  const raw=normalize(o);
+  sp.bird={id:sp.name,name:sp.name,raw,an:analyse(raw),est:true,sp};
+  return sp.bird;
+}
+const LATIN={'Rock Pigeon':'Columba livia','Barred Owl':'Strix varia','Eastern Screech-Owl':'Megascops asio','Canada Goose':'Branta canadensis','Mallard':'Anas platyrhynchos',
+ 'Black-crowned Night-Heron':'Nycticorax nycticorax','American Crow':'Corvus brachyrhynchos','Fish Crow':'Corvus ossifragus','Common Grackle':'Quiscalus quiscula',
+ 'Northern Flicker':'Colaptes auratus','Belted Kingfisher':'Megaceryle alcyon','Great Crested Flycatcher':'Myiarchus crinitus','Red-tailed Hawk':'Buteo jamaicensis',
+ 'House Sparrow':'Passer domesticus','Red-bellied Woodpecker':'Melanerpes carolinus','Eastern Kingbird':'Tyrannus tyrannus','White-breasted Nuthatch':'Sitta carolinensis',
+ 'Red-breasted Nuthatch':'Sitta canadensis','Northern Mockingbird':'Mimus polyglottos','Brown Thrasher':'Toxostoma rufum','European Starling':'Sturnus vulgaris',
+ 'Song Sparrow':'Melospiza melodia','House Finch':'Haemorhous mexicanus','Scarlet Tanager':'Piranga olivacea','Rose-breasted Grosbeak':'Pheucticus ludovicianus',
+ 'Red-eyed Vireo':'Vireo olivaceus','Warbling Vireo':'Vireo gilvus','American Goldfinch':'Spinus tristis','Purple Finch':'Haemorhous purpureus',
+ 'Brown-headed Cowbird':'Molothrus ater','Tufted Titmouse':'Baeolophus bicolor','Baltimore Oriole':'Icterus galbula','Hermit Thrush':'Catharus guttatus',
+ 'Wood Thrush':'Hylocichla mustelina','Veery':'Catharus fuscescens','Eastern Towhee':'Pipilo erythrophthalmus','Eastern Wood-Pewee':'Contopus virens',
+ 'Eastern Phoebe':'Sayornis phoebe','American Woodcock':'Scolopax minor','Carolina Wren':'Thryothorus ludovicianus','Chipping Sparrow':'Spizella passerina',
+ 'Dark-eyed Junco':'Junco hyemalis','Pine Warbler':'Setophaga pinus','Swamp Sparrow':'Melospiza georgiana','Downy Woodpecker':'Dryobates pubescens',
+ 'Common Yellowthroat':'Geothlypis trichas','Ovenbird':'Seiurus aurocapilla','Black-throated Blue Warbler':'Setophaga caerulescens',
+ 'Black-throated Green Warbler':'Setophaga virens','Northern Parula':'Setophaga americana','Yellow Warbler':'Setophaga petechia','American Redstart':'Setophaga ruticilla',
+ 'Black-and-white Warbler':'Mniotilta varia','Magnolia Warbler':'Setophaga magnolia','Yellow-rumped Warbler':'Setophaga coronata','Blackpoll Warbler':'Setophaga striata',
+ 'Golden-crowned Kinglet':'Regulus satrapa','Brown Creeper':'Certhia americana','Cedar Waxwing':'Bombycilla cedrorum','Blue-gray Gnatcatcher':'Polioptila caerulea',
+ 'Indigo Bunting':'Passerina cyanea','Ruby-crowned Kinglet':'Corthylio calendula'};
+
+/* ---------- listen page: the call written as birds on a staff ---------- */
+// bird-side details. PHOTOS: drop a data URI per bird here (with credit) to fill the right-hand panel.
+const FACTS={
+  cardinal:['Cardinalis cardinalis','year-round','thickets and feeders in the Ramble','“cheer — cheer — cheer”','21–23 cm'],
+  chickadee:['Poecile atricapillus','year-round','woodland edges, the Ramble','“fee — bee”','12–15 cm'],
+  robin:['Turdus migratorius','year-round, most in spring','open lawns, Sheep Meadow','“cheerily, cheer-up”','23–28 cm'],
+  jay:['Cyanocitta cristata','year-round','oaks and woodland','a loud “jay! jay!”','25–30 cm'],
+  dove:['Zenaida macroura','year-round','lawns and paths','a soft “coo-OO-oo, oo, oo”','23–34 cm'],
+  blackbird:['Agelaius phoeniceus','spring and summer','reeds at the Lake and Turtle Pond','“conk-la-reee!”','17–23 cm'],
+  wren:['Troglodytes aedon','spring and summer','shrubs in the North Woods','a bubbling, tumbling trill','11–13 cm'],
+  sparrow:['Zonotrichia albicollis','fall through spring','leaf litter in the Ramble','“oh sweet ca-na-da”','15–19 cm'],
+  catbird:['Dumetella carolinensis','spring and summer','dense shrubs, the Ramble','a cat-like “mew”','21–24 cm'],
+  owl:['Bubo virginianus','occasional, winter','tall trees, North Woods','deep “hoo, h’HOO — hoo, hoo”','46–63 cm']};
+const PHOTOS={}; // e.g. PHOTOS.cardinal={src:'data:image/jpeg;base64,...', credit:'Photo: …'}
+const lv=document.getElementById('stage'), lx=lv.getContext('2d');
+const PERCH=new Path2D("M16.8,4.6 L14.6,3.9 C14,2.4 12.3,1.9 11,2.6 C9.9,3.2 9.6,4.4 9.8,5.4 C6.6,5.6 3.8,7.6 2.6,10.4 L0,13.4 L3.6,12.2 C5.6,13.2 9,13 11.6,11.2 C13.6,9.8 14.4,7.6 14.6,5.6 Z M7.9,12.4 L7.5,15.2 L8.3,15.2 L8.7,12.2 Z M10.2,12 L10.3,15.2 L11.1,15.2 L10.9,11.8 Z");
+let LS=null, lsrc=null;
+function sizeStage(){ const dpr=Math.min(2,devicePixelRatio||1); lv.width=innerWidth*dpr; lv.height=innerHeight*dpr; lx.setTransform(dpr,0,0,dpr,0,0); }
+
+function noteEvents(b){
+  const fr=b.an.frames, hop=256/SR, thr=.12*b.an.maxR, ev=[]; let cur=null;
+  fr.forEach((f,i)=>{ const t=i*hop; if(f.rms>thr){ if(!cur) cur={t0:t,fr:[]}; cur.fr.push(f); } else if(cur){ cur.t1=t; ev.push(cur); cur=null; } });
+  if(cur){ cur.t1=fr.length*hop; ev.push(cur); }
+  const out=[];
+  ev.forEach(e=>{ const d=e.t1-e.t0, k=Math.max(1,Math.round(d/.14));     // long notes become several birds, so slides show
+    for(let j=0;j<k;j++){ const a=Math.floor(j*e.fr.length/k), z=Math.max(a+1,Math.floor((j+1)*e.fr.length/k)), fs=e.fr.slice(a,z);
+      let wl=0,ws=0,amp=0; fs.forEach(f=>{ wl+=f.rms*Math.log(f.peak); ws+=f.rms; amp=Math.max(amp,f.rms); });
+      out.push({t:e.t0+d*(j+.5)/k, hz:Math.exp(wl/ws), amp:amp/b.an.maxR}); } });
+  return out;
+}
+
+function staffGeom(){
+  const W=innerWidth,H=innerHeight, g=Math.max(8,Math.min(13,H*.0135));
+  const left=W*.045, right=W*.955, sysH=g*15;                       // one system = treble + bass, with room for birds
+  const top=Math.max(H*.33, 230), gapSys=Math.max(g*4, (H*.82-top-2*sysH)/1);
+  const systems=[0,1].map(i=>{ const yT=top+i*(sysH+gapSys), yB=yT+g*9;
+    const lo=yB+g*6, hi=yT-g*3;
+    return {yT,yB,yOfHz:hz=>{ const u=(Math.log(hz)-Math.log(P_LO))/(Math.log(P_HI)-Math.log(P_LO)); const y=lo-(lo-hi)*Math.max(0,Math.min(1,u)); return Math.round(y/(g/2))*(g/2); }}; });
+  return {W,H,g,left,right,systems,x0:left+g*5.5,x1:right-g};
+}
+
+function openListen(b){
+  const G=staffGeom(); sizeStage();
+  const one=noteEvents(b), dur1=b.an.dur, reps=dur1<1.6?6:dur1<2.4?4:3, pause=.7;   // the bird calls several times
+  const step=dur1+pause, dur=reps*step-pause, half=dur/2;
+  const ev=[]; for(let r=0;r<reps;r++) one.forEach(e=>ev.push({...e,t:e.t+r*step,rep:r}));
+  LS={b,G,dur,reps,step,half,birds:ev.map(e=>{ const sys=e.t<half?0:1, S=G.systems[sys], u=(e.t-sys*half)/half;
+      return {...e, sys, px:G.x0+u*(G.x1-G.x0), py:S.yOfHz(e.hz), s:G.g*(1.2+.8*e.amp),
+        state:'perched', x:0,y:0,vx:0,vy:0,flap:Math.random()*6, hist:[],
+        tx:G.W*(.5+.44*Math.random()), ty:G.H*(.05+.17*Math.random()), ph:Math.random()*6.28, flip:Math.random()<.5, sil:SIL[Math.floor(Math.random()*SIL.length)], fade:0}; })};
+  LS.birds.forEach(p=>{ p.x=p.px; p.y=p.py; });
+  const hz=b.an.pitchHz, pw=hz<900?'low':hz<2800?'middle':'high', fl=b.an.vec[2];
+  document.getElementById('lName').textContent=b.name;
+  const fct=FACTS[b.id]||['','','','',''], ph=PHOTOS[b.id], box=document.getElementById('photo');
+  document.getElementById('lLatin').textContent=fct[0];
+  const season=fct[1]; document.getElementById('lSeason').textContent= b.est ? 'Seen in Central Park · recording to come, this is a stand-in call' : (season ? season.charAt(0).toUpperCase()+season.slice(1)+' in Central Park' : '');
+  if(b.est) document.getElementById('lLatin').textContent=LATIN[b.name]||'';
+  document.getElementById('lPh').textContent='Photo of the '+b.name+' goes here';
+  document.getElementById('lCredit').textContent=ph?ph.credit||'':'';
+  box.classList.remove('empty'); box.style.backgroundImage=''; box.querySelector('.art')?.remove(); box.insertAdjacentHTML('beforeend', birdSVG(b.name));
+  document.getElementById('lMeta').innerHTML=
+    `Its call is ${(hz/1000).toFixed(1)} kHz and ${dur1.toFixed(1)} s long, with ${b.an.onsets} note${b.an.onsets>1?'s':''} and a ${fl>-3?'rough':fl>-7?'breathy':'whistled'} texture.`;
+  hover=null; hoverFlock=null; lab.style.opacity=0;
+  requestAnimationFrame(placeTitle); if(document.fonts) document.fonts.ready.then(placeTitle);
+  if(mode==='sort') closeSort();
+  mode='listen'; document.body.classList.add('listening');
+  document.getElementById('home').classList.add('hidden');
+  const L=document.getElementById('listen'); L.classList.remove('hidden'); L.classList.add('on');
+  startCall(.9);
+  requestAnimationFrame(listenFrame);
+}
+function startCall(wait){
+  if(!LS) return; const ac=window.audioCtx; if(lsrc){ try{lsrc.stop();}catch(e){} lsrc=null; }
+  LS.birds.forEach(p=>{ p.state='perched'; p.x=p.px; p.y=p.py; p.vx=p.vy=0; p.hist=[]; p.fade=0; });
+  if(!ac){ LS.t0=performance.now()/1000+wait; LS.clock=()=>performance.now()/1000; return; }
+  try{ ac.resume(); }catch(e){}
+  const raw=LS.b.raw, n=Math.ceil((LS.dur+.05)*SR), all=new Float32Array(n);
+  for(let r=0;r<LS.reps;r++) all.set(raw.subarray(0,Math.min(raw.length,n-Math.floor(r*LS.step*SR))),Math.floor(r*LS.step*SR));
+  const buf=ac.createBuffer(1,n,SR); buf.copyToChannel(all,0);
+  lsrc=ac.createBufferSource(); lsrc.buffer=buf; lsrc.connect(ac.destination);
+  LS.t0=ac.currentTime+wait; lsrc.start(LS.t0); LS.clock=()=>ac.currentTime;
+}
+function closeListen(){
+  if(lsrc){ try{lsrc.stop();}catch(e){} lsrc=null; }
+  document.body.classList.remove('listening');
+  const L=document.getElementById('listen'); L.classList.add('hidden'); L.classList.remove('on');
+  setTimeout(()=>{ LS=null; },900);
+  mode='home'; lastT=0; document.getElementById('home').classList.remove('hidden');
+  if(typeof MV!=='undefined' && MV.from==='map'){ MV.from=null; openMap(); }
+  else if(typeof SV!=='undefined' && SV.from){ SV.from=false; openSort(); }
+}
+document.getElementById('lPlay').onclick=()=>startCall(.15);
+document.getElementById('lBack').onclick=closeListen;
+window.onFlockClick=openListen;
+
+function flyer(x,y,a,s,flap,alpha){
+  lx.save(); lx.translate(x,y); lx.rotate(a); lx.globalAlpha=alpha;
+  const up=Math.sin(flap), span=s*(.62+.38*Math.abs(Math.cos(flap*.5+.3))), sweep=s*(.25+.2*up);
+  lx.beginPath(); lx.ellipse(-s*.05,0,s*.42,s*.13,0,0,7); lx.fill();
+  lx.beginPath(); lx.arc(s*.36,0,s*.11,0,7); lx.fill();
+  lx.beginPath(); lx.moveTo(-s*.4,0); lx.lineTo(-s*.68,-s*.12); lx.lineTo(-s*.62,0); lx.lineTo(-s*.68,s*.12); lx.closePath(); lx.fill();
+  for(const sg of [-1,1]){ lx.beginPath(); lx.moveTo(s*.12,0);
+    lx.quadraticCurveTo(s*.2,sg*span*.55,-sweep,sg*span); lx.quadraticCurveTo(-s*.05,sg*span*.45,-s*.18,0); lx.closePath(); lx.fill(); }
+  lx.restore();
+}
+
+function listenFrame(){
+  if(!LS){ lx.clearRect(0,0,innerWidth,innerHeight); return; }
+  requestAnimationFrame(listenFrame);
+  const {G,dur}=LS, now=LS.clock(), ct=now-LS.t0, W=G.W, H=G.H, g=G.g;
+  lx.clearRect(0,0,W,H); lx.fillStyle=INK; lx.strokeStyle=INK;
+  // two grand-staff systems, with a light bar line between each call
+  for(const S of G.systems){
+    lx.globalAlpha=.55; lx.lineWidth=1; lx.beginPath();
+    for(const y0 of [S.yT,S.yB]) for(let i=0;i<5;i++){ const y=Math.round(y0+i*g)+.5; lx.moveTo(G.left,y); lx.lineTo(G.right,y); }
+    lx.moveTo(G.left+.5,S.yT); lx.lineTo(G.left+.5,S.yB+4*g); lx.moveTo(G.right-.5,S.yT); lx.lineTo(G.right-.5,S.yB+4*g); lx.stroke();
+    lx.globalAlpha=.8; lx.textBaseline='alphabetic';
+    lx.font=`${g*6.6}px "Noto Music", serif`; lx.fillText('\u{1D11E}',G.left+g*.6,S.yT+g*5.25);
+    lx.font=`${g*3.4}px "Noto Music", serif`; lx.fillText('\u{1D122}',G.left+g*.7,S.yB+g*3.05);
+  }
+  lx.globalAlpha=.3; lx.beginPath();
+  for(let r=1;r<LS.reps;r++){ const t=r*LS.step-.35, sys=t<LS.half?0:1, S=G.systems[sys], x=Math.round(G.x0+((t-sys*LS.half)/LS.half)*(G.x1-G.x0))+.5;
+    if(Math.abs(t-LS.half)<.4) continue; lx.moveTo(x,S.yT); lx.lineTo(x,S.yT+4*g); lx.moveTo(x,S.yB); lx.lineTo(x,S.yB+4*g); }
+  lx.stroke();
+  // playhead on whichever system is sounding
+  if(ct>=0 && ct<=dur){ const sys=ct<LS.half?0:1, S=G.systems[sys], x=G.x0+((ct-sys*LS.half)/LS.half)*(G.x1-G.x0);
+    lx.globalAlpha=.22; lx.beginPath(); lx.moveTo(x+.5,S.yT-g*3); lx.lineTo(x+.5,S.yB+g*6); lx.stroke(); }
+  // birds
+  for(const p of LS.birds){
+    if(p.state==='perched' && ct>=p.t){ p.state='flying'; p.x=p.px; p.y=p.py-p.s*.5; p.vx=1.4+Math.random()*1.2; p.vy=-2.4-Math.random()*1.4; }
+    if(p.state==='flying') p.fade=Math.min(1,p.fade+.04);
+    if(p.state==='flying'){
+      const sway=Math.sin(now*.9+p.ph)*14, gx=p.tx+sway, gy=p.ty+Math.cos(now*.7+p.ph)*9;
+      const dx=gx-p.x, dy=gy-p.y, d=Math.hypot(dx,dy)||1, want=Math.min(3.4,d*.03);
+      p.vx+=(dx/d*want-p.vx)*.035; p.vy+=(dy/d*want-p.vy)*.035;
+      p.x+=p.vx; p.y+=p.vy; p.flap+=.32*Math.min(1,.35+Math.hypot(p.vx,p.vy)/2);
+      p.hist.push(p.x,p.y); if(p.hist.length>24) p.hist.splice(0,2);
+    }
+  }
+  // pale marks where flying birds have been
+  for(const p of LS.birds){ const h=p.hist; for(let i=0;i<h.length;i+=2){ lx.globalAlpha=.02+.12*(i/h.length); lx.fillRect(h[i]-.7,h[i+1]-.7,1.4,1.4); } }
+  for(const p of LS.birds){
+    // the note stays on the staff: dark until it sings, then a pale mark of where the bird was
+    const k=p.s/17; lx.save(); lx.globalAlpha=.92-.68*p.fade; lx.translate(p.px-8.5*k,p.py-15.2*k); lx.scale(k,k); lx.fill(PERCH); lx.restore();
+    if(p.state==='flying'){ // the voice flies off: real silhouette, wings beating while it moves
+      const sp=Math.hypot(p.vx,p.vy), sc=p.s*1.35/p.sil.w, beat=Math.min(1,sp/1.4)*.45, sy=sc*(1-beat*(.5+.5*Math.sin(p.flap)));
+      lx.save(); lx.globalAlpha=.9; lx.translate(p.x,p.y); lx.rotate(Math.max(-.4,Math.min(.4,p.vy*.08))); lx.scale(p.flip?-sc:sc,sy); lx.fill(p.sil.path); lx.restore(); }
+  }
+  lx.globalAlpha=1;
+}
+function placeTitle(){ // legend's first line level with the season line; play again below it
+  if(innerWidth<=860) return;
+  const ln2=document.getElementById('lSeason').getBoundingClientRect(), key=document.querySelector('#listen .key'), acts=document.querySelector('#listen .acts');
+  key.style.bottom='auto'; key.style.top=ln2.top+'px';
+  acts.style.bottom='auto'; acts.style.top=(ln2.top+key.offsetHeight+18)+'px'; }
+addEventListener('resize',()=>{ placeTitle(); if(LS){ const b=LS.b; const st=LS.birds.map(p=>p.state); openListen(b); } });
+
+/* ============================================================
+   MAP PAGE — "Where to listen": Central Park by time of day
+   (bird locations + activity times are estimates by habitat/family)
+   ============================================================ */
+const SPOTS=[
+  {id:'pond', name:'The Pond', x:.04, y:.74, hab:'water', lab:'below'},
+  {id:'hallett', name:'Hallett Sanctuary', x:.07, y:.5, hab:'woodland', lab:'above'},
+  {id:'sheep', name:'Sheep Meadow', x:.17, y:.3, hab:'lawn'},
+  {id:'lake', name:'The Lake', x:.3, y:.33, hab:'water', lab:'above'},
+  {id:'conserv', name:'Conservatory Water', x:.285, y:.84, hab:'water', lab:'below'},
+  {id:'ramble', name:'The Ramble', x:.345, y:.58, hab:'woodland', lab:'below'},
+  {id:'turtle', name:'Turtle Pond', x:.405, y:.64, hab:'water', lab:'right'},
+  {id:'lawn', name:'Great Lawn', x:.46, y:.42, hab:'lawn', lab:'above'},
+  {id:'res', name:'The Reservoir', x:.635, y:.5, hab:'water'},
+  {id:'nmeadow', name:'North Meadow', x:.795, y:.55, hab:'lawn', lab:'below'},
+  {id:'pool', name:'The Pool', x:.835, y:.17, hab:'water', lab:'above'},
+  {id:'nwoods', name:'North Woods', x:.905, y:.3, hab:'woodland', lab:'above'},
+  {id:'meer', name:'Harlem Meer', x:.95, y:.76, hab:'water', lab:'below'},
+];
+const WATER_BIRDS=['Mallard','Canada Goose','Black-crowned Night-Heron','Belted Kingfisher','Red-winged Blackbird','Swamp Sparrow','Common Grackle'];
+const LAWN_BIRDS=['American Robin','European Starling','House Sparrow','Rock Pigeon','Mourning Dove','Brown-headed Cowbird','Common Grackle','Northern Flicker',
+  'American Crow','Fish Crow','American Goldfinch','House Finch','Chipping Sparrow','Red-tailed Hawk','Eastern Kingbird'];
+function spotsFor(sp){
+  const n=sp.name, out=[];
+  if(WATER_BIRDS.includes(n)){ out.push('lake','turtle','meer','pool','pond'); if(['Mallard','Canada Goose','Belted Kingfisher'].includes(n)) out.push('res'); if(n==='Mallard') out.push('conserv'); }
+  if(LAWN_BIRDS.includes(n)){ out.push('sheep','lawn','nmeadow'); if(['Red-tailed Hawk','House Sparrow','Rock Pigeon'].includes(n)) out.push('conserv'); }
+  if(!out.length || ['American Robin','Northern Flicker','Common Grackle'].includes(n)){
+    out.push('ramble','nwoods','hallett'); if(n==='Barred Owl'||n==='Eastern Screech-Owl') out.splice(out.indexOf('hallett'),1);
+    if(['Wood Thrush','Gray Catbird','Northern Cardinal','Baltimore Oriole','Warbling Vireo'].includes(n)) out.push('pool');
+  }
+  return [...new Set(out)];
+}
+// when each bird is most active (0–1 by hour)
+const gA=(h,c,w)=>Math.exp(-.5*((h-c)/w)**2);
+function activityPattern(sp){
+  const n=sp.name;
+  if(/Owl/.test(n)||n==='Black-crowned Night-Heron') return 'night';
+  if(n==='American Woodcock'||/Thrush|Veery/.test(n)||n==='American Robin') return 'twilight';
+  if(['Mallard','Canada Goose','Red-tailed Hawk','Belted Kingfisher','American Crow','Fish Crow','Rock Pigeon','House Sparrow'].includes(n)) return 'day';
+  return 'dawn';
+}
+function activity(pat,h){
+  if(pat==='night') return Math.min(1,(h>=20||h<=4.5?1:0)+gA(h,19.3,.7)+gA(h,5.2,.6));
+  if(pat==='twilight') return Math.min(1,gA(h,5.8,1.2)+gA(h,19.6,1.1)+.25*gA(h,12,3));
+  if(pat==='day') return Math.min(1,gA(h,12.5,3.6));
+  return Math.min(1,gA(h,6.6,1.5)+.45*gA(h,12,3)+.3*gA(h,18.3,1.2));
+}
+
+/* sky + ink through the day */
+const SKY=[ // hour, top, bottom, ink, glow
+  [4,  '#1b2640','#3a3f63','#dfe6f0','rgba(200,190,255,.10)'],
+  [5.5,'#5a5f8f','#f0b6a2','#1c2633','rgba(255,190,160,.45)'],
+  [7,  '#9fc0e2','#f7dcc8','#1c2633','rgba(255,225,190,.45)'],
+  [10, '#8db6dc','#e1ecf4','#1c2633','rgba(255,250,235,.45)'],
+  [14, '#7fadd8','#dbe8f2','#1c2633','rgba(255,250,235,.4)'],
+  [17.5,'#a7b9d6','#f6d2b0','#1c2633','rgba(255,205,150,.5)'],
+  [19.2,'#6c6e9c','#ec9f88','#1c2633','rgba(255,160,120,.5)'],
+  [20.5,'#28324f','#57557e','#dfe6f0','rgba(190,180,255,.18)'],
+  [23, '#141c30','#28304a','#dfe6f0','rgba(200,200,255,.08)'],
+];
+const hex=c=>[1,3,5].map(i=>parseInt(c.slice(i,i+2),16));
+const mixC=(a,b,t)=>{ const A=hex(a),B=hex(b); return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`; };
+const mixA=(a,b,t)=>{ const p=s=>s.match(/[\d.]+/g).map(Number), A=p(a), B=p(b); return `rgba(${A.map((v,i)=>i<3?Math.round(v+(B[i]-v)*t):(v+(B[i]-v)*t).toFixed(2)).join(',')})`; };
+function skyAt(h){
+  let i=0; while(i<SKY.length-2 && h>SKY[i+1][0]) i++;
+  const a=SKY[i], b=SKY[i+1], t=Math.max(0,Math.min(1,(h-a[0])/(b[0]-a[0]))), s=t*t*(3-2*t);
+  const inkDark=(a[3]==='#1c2633'?0:1)*(1-s)+(b[3]==='#1c2633'?0:1)*s;
+  return {top:mixC(a[1],b[1],s), bot:mixC(a[2],b[2],s), ink:mixC('#1c2633','#dfe6f0',inkDark), dark:inkDark, glow:mixA(a[4],b[4],s)};
+}
+function timeLabel(h){ const H=Math.floor(h), M=Math.round((h-H)*60/15)*15%60, hh=((H+11)%12)+1; return `${hh}:${String(M).padStart(2,'0')} ${H<12?'am':'pm'}`; }
+function partOfDay(h){ return h<5?'Night':h<8?'Dawn chorus':h<11?'Morning':h<14?'Midday':h<17?'Afternoon':h<19?'Evening':h<21?'Dusk':'Night'; }
+
+/* ---------- build ---------- */
+const MV={h:6.5, built:false, specks:{}, card:null, playing:[], from:null};
+function mapGeom(){ const W=innerWidth,H=innerHeight, w=Math.min(W*.84,1320), h=w/5; return {W,H,w,h,x:(W-w)/2,y:H*.5-h/2}; }
+function P(G,fx,fy){ return [G.x+fx*G.w, G.y+fy*G.h]; }
+const shape=(G,pts)=>smoothPath(pts.map(([a,b])=>P(G,a,b)),true);
+function buildMap(){
+  const G=mapGeom(), svg=document.getElementById('mapsvg'); MV.G=G;
+  svg.setAttribute('viewBox',`0 0 ${G.W} ${G.H}`);
+  const X=st=>G.x+(st-59)/51*G.w, av=G.h*.34;                       // one block ≈ 1/51 of the park; avenue spacing ≈ 1/3 park width
+  let s=`<defs>
+    <pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><line x1="0" y1="0" x2="0" y2="4" class="mk" stroke-width=".6"/></pattern>
+    <pattern id="grass" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r=".55" class="mkf"/><circle cx="4.5" cy="4.5" r=".55" class="mkf"/></pattern>
+    <linearGradient id="fadeH" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".07" stop-color="#fff"/><stop offset=".93" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <mask id="fade"><rect x="${X(55.5)}" y="0" width="${X(113.5)-X(55.5)}" height="${G.H}" fill="url(#fadeH)"/></mask></defs>`;
+  // ---- city grid around the park (fades out toward the page edges)
+  let grid='';
+  const top=G.y-av*1.25, bot=G.y+G.h+av*1.45;
+  const avesW=[['Central Park West',G.y],['Columbus Ave',G.y-av]], avesE=[['Fifth Ave',G.y+G.h],['Madison Ave',G.y+G.h+av*.62],['Park Ave',G.y+G.h+av*1.24]];
+  const GS=window.GRIDSTYLE||'B', rows=[[top,G.y-av],[G.y-av,G.y],[G.y+G.h,G.y+G.h+av*.62],[G.y+G.h+av*.62,G.y+G.h+av*1.24],[G.y+G.h+av*1.24,bot]];
+  if(GS==='A'){ // original: hairline streets + blocks
+    for(let st=56;st<=113;st++){ const x=X(st); grid+=`<line x1="${x}" y1="${top}" x2="${x}" y2="${G.y}" class="st"/><line x1="${x}" y1="${G.y+G.h}" x2="${x}" y2="${bot}" class="st"/>`; }
+    for(const [n,y] of [...avesW,...avesE]) grid+=`<line x1="${X(55.5)}" y1="${y}" x2="${X(113.5)}" y2="${y}" class="av"/>`;
+    for(let st=56;st<113;st++) for(const [y0,y1] of rows){ const x=X(st)+1.6, w=X(st+1)-X(st)-3.2; if(w>1) grid+=`<rect x="${x}" y="${y0+1.6}" width="${w}" height="${y1-y0-3.2}" class="blk"/>`; }
+  } else if(GS==='B'){ // city blocks only: the streets are the gaps between them
+    for(let st=56;st<113;st++) for(const [y0,y1] of rows){ const g2=Math.max(2.5,(X(57)-X(56))*.16), x=X(st)+g2/2, w=X(st+1)-X(st)-g2, ag=5;
+      grid+=`<rect x="${x.toFixed(1)}" y="${(y0+ag/2).toFixed(1)}" width="${w.toFixed(1)}" height="${(y1-y0-ag).toFixed(1)}" rx="1" class="blkB"/>`; }
+  } else if(GS==='C'){ // street lines only, no fills
+    for(let st=56;st<=113;st++){ const x=X(st), major=st%10===0; grid+=`<line x1="${x}" y1="${top}" x2="${x}" y2="${G.y}" class="${major?'stM':'st'}"/><line x1="${x}" y1="${G.y+G.h}" x2="${x}" y2="${bot}" class="${major?'stM':'st'}"/>`; }
+    for(const [n,y] of [...avesW,...avesE]) grid+=`<line x1="${X(55.5)}" y1="${y}" x2="${X(113.5)}" y2="${y}" class="av"/>`;
+  } else if(GS==='D'){ // minimal: avenues plus every tenth street
+    for(const [n,y] of [...avesW,...avesE]) grid+=`<line x1="${X(55.5)}" y1="${y}" x2="${X(113.5)}" y2="${y}" class="av"/>`;
+    for(let st=60;st<=110;st+=10){ const x=X(st); grid+=`<line x1="${x}" y1="${top}" x2="${x}" y2="${G.y}" class="stM"/><line x1="${x}" y1="${G.y+G.h}" x2="${x}" y2="${bot}" class="stM"/>`; }
+  }
+  s+=`<g mask="url(#fade)">${grid}</g>`;
+  for(const [n,y] of [...avesW.slice(1),...avesE.slice(1,3)]) s+=`<text x="${X(59)}" y="${y-4}" class="avl" text-anchor="middle">${n}</text><text x="${X(110)}" y="${y-4}" class="avl" text-anchor="middle">${n}</text>`;
+  s+=`<text x="${X(84.5)}" y="${G.y-6}" class="avl" text-anchor="middle">Central Park West</text><text x="${X(84.5)}" y="${G.y+G.h+14}" class="avl" text-anchor="middle">Fifth Avenue</text>`;
+  for(let st=60;st<=110;st+=10) s+=`<text x="${X(st)}" y="${G.y+G.h+av*.62+15}" class="stl" text-anchor="middle">${st}th St</text>`;
+  s+=`<text x="${X(59)-8}" y="${G.y+G.h/2+4}" class="stl" text-anchor="end">Central Park South</text><text x="${X(110)+8}" y="${G.y+G.h/2+4}" class="stl">Central Park North</text>`;
+  // ---- park ground
+  s+=`<rect x="${G.x}" y="${G.y}" width="${G.w}" height="${G.h}" class="park"/>`;
+  // lawns
+  for(const [cx,cy,rx,ry] of [[.17,.32,.032,.2],[.458,.45,.04,.22],[.795,.55,.04,.24],[.2,.72,.02,.1],[.6,.95,.04,.04]])
+    s+=`<path d="${shape(G,[...Array(24)].map((_,i)=>{const a=i/24*6.283; return [cx+Math.cos(a)*rx*(1+.06*Math.sin(a*3)), cy+Math.sin(a)*ry*(1+.06*Math.cos(a*2))];}))}" class="lawn"/>`;
+  // woodland (tree marks)
+  const trees=(poly,n,seed)=>{ let t='', sd=seed; const R=()=>(sd=(sd*9301+49297)%233280)/233280;
+    const xs=poly.map(p=>p[0]), ys=poly.map(p=>p[1]), inside=(x,y)=>{ let c=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const [xi,yi]=poly[i],[xj,yj]=poly[j]; if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) c=!c; } return c; };
+    for(let k=0;k<n*4&&n>0;k++){ const fx=Math.min(...xs)+R()*(Math.max(...xs)-Math.min(...xs)), fy=Math.min(...ys)+R()*(Math.max(...ys)-Math.min(...ys)); if(!inside(fx,fy)) continue; n--;
+      const [x,y]=P(G,fx,fy), r=1.1+R()*1.2; t+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" class="tree"/>`; } return t; };
+  s+=trees([[.31,.42],[.36,.38],[.395,.45],[.39,.62],[.36,.76],[.32,.7],[.3,.55]],150,7);
+  s+=trees([[.84,.05],[.99,.05],[.99,.45],[.92,.52],[.86,.4],[.84,.25]],190,11);
+  s+=trees([[.055,.4],[.09,.38],[.095,.58],[.06,.6]],40,3);
+  s+=trees([[.005,.05],[.12,.05],[.12,.18],[.005,.2]],45,5)+trees([[.2,.04],[.28,.04],[.27,.14],[.2,.16]],35,9)+trees([[.5,.8],[.53,.75],[.74,.92],[.5,.96]],50,13)+trees([[.74,.08],[.79,.08],[.78,.25],[.74,.22]],25,15);
+  // water
+  const W_=[[[.012,.6],[.03,.55],[.052,.62],[.06,.78],[.05,.9],[.03,.92],[.018,.82]],
+    [[.255,.38],[.268,.22],[.29,.14],[.31,.24],[.33,.16],[.352,.2],[.37,.32],[.35,.4],[.338,.36],[.322,.44],[.33,.54],[.31,.6],[.295,.5],[.278,.56],[.262,.48]],
+    [[.276,.8],[.29,.78],[.296,.84],[.29,.9],[.278,.89]],
+    [[.392,.6],[.41,.56],[.426,.6],[.42,.7],[.4,.71]],
+    [[.54,.42],[.552,.2],[.59,.08],[.645,.06],[.7,.12],[.732,.32],[.736,.6],[.71,.86],[.655,.95],[.6,.93],[.56,.8]],
+    [[.822,.14],[.84,.1],[.852,.18],[.84,.24],[.826,.22]],
+    [[.902,.62],[.935,.55],[.975,.6],[.99,.78],[.975,.95],[.935,.94],[.91,.84]]];
+  for(const w of W_) s+=`<path d="${shape(G,w)}" class="water"/>`;
+  s+=`<path d="M${P(G,.85,.2)} C${P(G,.87,.3)} ${P(G,.88,.42)} ${P(G,.905,.58)}" class="stream"/>`;   // The Loch
+  // The Met + Bethesda Terrace landmarks
+  s+=`<rect x="${P(G,.41,.86)[0]}" y="${P(G,.41,.86)[1]}" width="${G.w*.055}" height="${G.h*.11}" class="bldg"/><text x="${P(G,.437,.92)[0]}" y="${P(G,.437,.92)[1]+3}" class="tiny" text-anchor="middle">The Met</text>`;
+  // drive loop + transverse roads
+  s+=`<rect x="${G.x+G.w*.012}" y="${G.y+G.h*.08}" width="${G.w*.976}" height="${G.h*.84}" rx="${G.h*.38}" class="drive"/>`;
+  for(const st of [65,79,85.5,97]){ const x=X(st); s+=`<path d="M${x-3},${G.y} C${x+6},${G.y+G.h*.35} ${x-6},${G.y+G.h*.65} ${x+3},${G.y+G.h}" class="trans"/>`; }
+  // paths
+  for(const [pts] of [[[[.03,.3],[.09,.25],[.13,.5],[.2,.55],[.26,.7]]],[[[.22,.9],[.26,.62],[.33,.6],[.4,.45],[.5,.2],[.53,.12]]],[[[.74,.15],[.78,.3],[.84,.55],[.89,.62],[.99,.5]]]])
+    s+=`<path d="${smoothPath(pts.map(([a,b])=>P(G,a,b)),false)}" class="path"/>`;
+  s+=`<rect x="${G.x}" y="${G.y}" width="${G.w}" height="${G.h}" class="edge2"/>`;
+  // ---- spots
+  for(const sp of SPOTS){ const [x,y]=P(G,sp.x,sp.y); sp.px=x; sp.py=y;
+    const lt = sp.lab==='right'?`<text x="12" y="4" class="sl" text-anchor="start">${sp.name}</text>` : `<text y="${(sp.lab==='above'||(!sp.lab&&sp.y<.5))?-12:21}" class="sl" text-anchor="middle">${sp.name}</text>`;
+    s+=`<g class="spot" data-id="${sp.id}" transform="translate(${x},${y})"><circle r="15" class="hit"/><circle r="5.2" class="halo"/><circle r="3" class="dotc"/>${lt}</g>`; }
+  // ---- north arrow, scale bar, legend
+  const nx=G.x+G.w-22, ny=G.y+G.h+av*1.85, ang=-29;
+  s+=`<g transform="translate(${nx},${ny}) rotate(${ang+90})"><path d="M0,-17 L5,6 L0,2 L-5,6Z" class="narrow"/><text y="-21" class="nl" text-anchor="middle">N</text></g>`;
+  const km=G.w/4.0, sx=G.x+G.w-km*.5-60, sy=ny+4;
+  s+=`<g class="scale"><line x1="${sx}" y1="${sy}" x2="${sx+km*.5}" y2="${sy}"/><line x1="${sx}" y1="${sy-4}" x2="${sx}" y2="${sy+4}"/><line x1="${sx+km*.25}" y1="${sy-3}" x2="${sx+km*.25}" y2="${sy+3}"/><line x1="${sx+km*.5}" y1="${sy-4}" x2="${sx+km*.5}" y2="${sy+4}"/>
+     <text x="${sx}" y="${sy-8}" class="tiny">0</text><text x="${sx+km*.5}" y="${sy-8}" class="tiny" text-anchor="middle">500 m</text></g>`;
+  const lx0=G.x, ly0=ny-14; const item=(i,sym,txt)=>`<g transform="translate(${lx0+i*120},${ly0})">${sym}<text x="22" y="4" class="tiny">${txt}</text></g>`;
+  s+=item(0,`<rect x="0" y="-5" width="16" height="10" class="water"/>`,'Water')+item(1,`<rect x="0" y="-5" width="16" height="10" class="lawn"/>`,'Lawn')
+    +item(2,`<circle cx="4" cy="0" r="2.6" class="tree"/><circle cx="11" cy="-1" r="2.2" class="tree"/><circle cx="8" cy="3" r="2" class="tree"/>`,'Woodland')
+    +item(3,`<circle cx="8" cy="0" r="5.2" class="halo"/><circle cx="8" cy="0" r="3" class="dotc"/>`,'Listening spot')+item(4.3,`<path d="M0,0 h6 m3,0 h7" class="flk"/>`,'Birds singing now');
+  svg.innerHTML=s;
+  svg.querySelectorAll('.spot').forEach(g=>{
+    const sp=SPOTS.find(x=>x.id===g.dataset.id);
+    g.addEventListener('mouseenter',()=>showSpot(sp,false)); g.addEventListener('mouseleave',()=>{ if(MV.card!==sp) hideSpot(); });
+    g.addEventListener('click',e=>{ e.stopPropagation(); showSpot(sp,true); playSpot(sp); });
+  });
+  SPECIES.forEach(sp=>{ sp.spots=spotsFor(sp); sp.pat=activityPattern(sp); });
+  SPOTS.forEach(sp=>{ sp.members=SPECIES.filter(b=>b.spots.includes(sp.id));
+    MV.specks[sp.id]=[...Array(160)].map(()=>{ const a=Math.random()*Math.PI*2, rr=Math.abs(gauss())*.5; return {a, rr, w:.4+Math.random()*.9, ph:Math.random()*6.28, s:.8+Math.random()*1.4, k:Math.random()}; }); });
+  MV.built=true; setHour(MV.h);
+}
+function activeAt(spot,h){ return spot.members.map(b=>({b,w:activity(b.pat,h)})).filter(o=>o.w>.35).sort((a,b)=>b.w-a.w); }
+function setHour(h){
+  MV.h=h; const k=skyAt(h), root=document.getElementById('mapview');
+  root.style.setProperty('--mink',k.ink); root.style.setProperty('--labelbg',k.dark>.5?'#1d2540':'#eef4f9'); root.style.setProperty('--mfaint',k.dark>.5?'rgba(223,230,240,.35)':'rgba(28,38,51,.3)');
+  document.getElementById('mapsky').style.background=`radial-gradient(ellipse 60% 55% at ${10+80*Math.max(0,Math.min(1,(h-5)/15))}% -5%, ${k.glow}, transparent 70%), linear-gradient(${k.top}, ${k.bot})`;
+  document.getElementById('stars').style.opacity=Math.max(0,k.dark-.4)*1.6;
+  document.getElementById('mTime').textContent=timeLabel(h);
+  document.getElementById('nav').style.setProperty('--navgrey',k.dark>.5?'rgba(223,230,240,.7)':'#5f6974'); document.getElementById('nav').style.setProperty('--navring',k.dark>.5?'rgba(223,230,240,.3)':'rgba(28,38,51,.28)');
+  document.getElementById('nav').style.setProperty('--navsoft',k.dark>.5?'rgba(223,230,240,.6)':'');
+  let total=new Set(); SPOTS.forEach(sp=>{ const a=activeAt(sp,h); sp.active=a; sp.level=a.reduce((s,o)=>s+o.w,0); a.forEach(o=>total.add(o.b.name)); });
+  document.getElementById('mPart').textContent=`${partOfDay(h)} · ${total.size} species likely singing`;
+  if(MV.card) showSpot(MV.card,true);
+}
+/* gentle specks over each spot: more birds where more are singing */
+const mc=document.getElementById('mapflock'), mx2=mc.getContext('2d');
+function mapFrame(){
+  if(mode!=='map') return; requestAnimationFrame(mapFrame);
+  const W=innerWidth,H=innerHeight, t=performance.now()/1000;
+  mx2.clearRect(0,0,W,H); const ink=getComputedStyle(document.getElementById('mapview')).getPropertyValue('--mink').trim()||'#1c2633';
+  mx2.strokeStyle=ink; mx2.fillStyle=ink; mx2.lineCap='round'; mx2.lineWidth=1;
+  for(const sp of SPOTS){ const n=Math.min(130,Math.round(sp.level*7)), R=10+Math.sqrt(n)*2.4, hot=MV.card===sp;
+    mx2.globalAlpha=hot?.95:.75; mx2.beginPath();
+    for(let i=0;i<n;i++){ const p=MV.specks[sp.id][i], a=p.a+t*.15*p.w, x=sp.px+Math.cos(a)*R*p.rr*1.6+Math.sin(t*.8+p.ph)*2, y=sp.py-6+Math.sin(a)*R*p.rr*.8+Math.cos(t*.7+p.ph)*1.5;
+      if(p.s<1.3) mx2.rect(x-.6,y-.4,1.2,.8); else { const dx=Math.cos(.4)*p.s, dy=Math.sin(-.4)*p.s; mx2.moveTo(x-dx,y-dy+Math.sin(t*6+p.ph)*.6); mx2.lineTo(x,y); } }
+    mx2.fill(); mx2.stroke(); }
+  mx2.globalAlpha=1;
+}
+/* ---------- card + soundscape ---------- */
+function showSpot(sp,pin){
+  const c=document.getElementById('mapcard'); if(pin) MV.card=sp;
+  const a=sp.active||[], names=a.slice(0,9).map(o=>`<button class="bn" data-n="${o.b.name}">${o.b.name}</button>`).join('');
+  c.innerHTML=`<p class="t">${sp.name}</p><p class="s">${sp.hab==='water'?'Water’s edge':sp.hab==='lawn'?'Open lawn':'Woodland'} · ${a.length} species likely here at ${timeLabel(MV.h)}</p>
+    <div class="names">${names||'<span class="quiet">Quiet at this hour</span>'}${a.length>9?`<span class="quiet">+${a.length-9} more</span>`:''}</div>
+    <p class="m">${pin?'Click a name to open its song':'Click to hear this spot'}</p>`;
+  c.querySelectorAll('.bn').forEach(btn=>btn.onclick=()=>{ const s=SPECIES.find(x=>x.name===btn.dataset.n); stopSpot(); MV.from='map'; openListen(s.real||standIn(s)); });
+  const left=Math.max(170,Math.min(innerWidth-170,sp.px)), top=sp.y<.5? sp.py+34 : sp.py-30;
+  c.style.left=left+'px'; c.style.top=top+'px'; c.style.transform=sp.y<.5?'translate(-50%,0)':'translate(-50%,-100%)'; c.style.opacity=1; c.style.pointerEvents=pin?'auto':'none';
+}
+function hideSpot(){ const c=document.getElementById('mapcard'); c.style.opacity=0; c.style.pointerEvents='none'; }
+function stopSpot(){ MV.playing.forEach(s=>{ try{s.stop();}catch(e){} }); MV.playing=[]; }
+function playSpot(sp){
+  stopSpot(); const ac=window.audioCtx; if(!ac) return; try{ac.resume();}catch(e){}
+  const pick=(sp.active||[]).slice(0,6); let t=ac.currentTime+.1;
+  pick.forEach((o,i)=>{ const b=o.b.real||standIn(o.b), buf=ac.createBuffer(1,b.raw.length,SR); buf.copyToChannel(b.raw,0);
+    for(let r=0;r<2;r++){ const src=ac.createBufferSource(), g=ac.createGain(); g.gain.value=.22+.35*o.w; src.buffer=buf; src.connect(g); g.connect(ac.destination);
+      src.start(t+i*.55+r*(b.an.dur+.9+Math.random()*.6)); MV.playing.push(src); } });
+}
+/* ---------- open / close ---------- */
+function openMap(){
+  if(LS) closeListen(true);
+  if(mode==='sort') closeSort();
+  hover=null; hoverFlock=null; lab.style.opacity=0;
+  mode='map'; document.body.classList.add('mapping');
+  document.getElementById('home').classList.add('hidden');
+  const M=document.getElementById('mapview'); M.classList.remove('hidden'); M.classList.add('on');
+  const dpr=Math.min(2,devicePixelRatio||1); mc.width=innerWidth*dpr; mc.height=innerHeight*dpr; mx2.setTransform(dpr,0,0,dpr,0,0);
+  buildMap(); requestAnimationFrame(mapFrame); setNav('map');
+}
+function closeMap(quiet){
+  stopSpot(); hideSpot(); MV.card=null;
+  document.body.classList.remove('mapping'); const M=document.getElementById('mapview'); M.classList.add('hidden'); M.classList.remove('on');
+  if(quiet) return;
+  mode='home'; lastT=0; document.getElementById('home').classList.remove('hidden'); setNav('flock');
+
+}
+function setNav(w){ document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('cur',b.dataset.v===w)); }
+document.getElementById('mapview').addEventListener('click',e=>{ if(e.target.closest('#mapcard')||e.target.closest('.spot')||e.target.closest('.timebar')) return; MV.card=null; hideSpot(); stopSpot(); });
+document.getElementById('hour').addEventListener('input',e=>setHour(+e.target.value));
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{ const v=b.dataset.v;
+  if(v==='map'){ if(mode!=='map') openMap(); }
+  else if(v==='sort'){ if(mode!=='sort') openSort(); }
+  else { if(mode==='map') closeMap(); else if(mode==='sort'){ closeSort(); mode='home'; lastT=0; document.getElementById('home').classList.remove('hidden'); setNav('flock'); } } });
+addEventListener('resize',()=>{ if(mode==='map'){ const dpr=Math.min(2,devicePixelRatio||1); mc.width=innerWidth*dpr; mc.height=innerHeight*dpr; mx2.setTransform(dpr,0,0,dpr,0,0); buildMap(); } });
+// stars for the night sky
+(()=>{ let s=''; for(let i=0;i<120;i++) s+=`<circle cx="${Math.random()*100}%" cy="${Math.random()*60}%" r="${Math.random()<.9?.6:1.1}" fill="#fff" opacity="${.3+Math.random()*.6}"/>`; document.getElementById('stars').innerHTML=s; })();
+
+/* ============================================================
+   SORT PAGE — the 72 species regrouped six ways
+   (family is standard taxonomy; season, habitat, time and size are estimates)
+   ============================================================ */
+const FAMILY_OF=(()=>{ const F={
+  'Owls':['Great Horned Owl','Barred Owl','Eastern Screech-Owl'],
+  'Hawks':['Red-tailed Hawk'],
+  'Waterbirds':['Canada Goose','Mallard','Black-crowned Night-Heron','Belted Kingfisher','American Woodcock'],
+  'Doves & pigeons':['Mourning Dove','Rock Pigeon'],
+  'Woodpeckers':['Northern Flicker','Red-bellied Woodpecker','Downy Woodpecker'],
+  'Flycatchers':['Eastern Kingbird','Great Crested Flycatcher','Eastern Wood-Pewee','Eastern Phoebe'],
+  'Crows & jays':['Blue Jay','American Crow','Fish Crow'],
+  'Chickadees, wrens & kin':['Black-capped Chickadee','Tufted Titmouse','White-breasted Nuthatch','Red-breasted Nuthatch','Brown Creeper','House Wren','Carolina Wren','Golden-crowned Kinglet','Ruby-crowned Kinglet','Blue-gray Gnatcatcher'],
+  'Thrushes & mimics':['American Robin','Hermit Thrush','Wood Thrush','Veery','Gray Catbird','Northern Mockingbird','Brown Thrasher','European Starling','Cedar Waxwing'],
+  'Vireos':['Red-eyed Vireo','Warbling Vireo'],
+  'Sparrows & finches':['White-throated Sparrow','Song Sparrow','Swamp Sparrow','Chipping Sparrow','Dark-eyed Junco','Eastern Towhee','House Sparrow','House Finch','Purple Finch','American Goldfinch'],
+  'Blackbirds & orioles':['Red-winged Blackbird','Common Grackle','Brown-headed Cowbird','Baltimore Oriole'],
+  'Cardinals & tanagers':['Northern Cardinal','Rose-breasted Grosbeak','Scarlet Tanager','Indigo Bunting'],
+  'Wood-warblers':['Pine Warbler','Common Yellowthroat','Ovenbird','Black-throated Blue Warbler','Black-throated Green Warbler','Northern Parula','Yellow Warbler','American Redstart','Black-and-white Warbler','Magnolia Warbler','Yellow-rumped Warbler','Blackpoll Warbler'],
+  }; const m={}; for(const k in F) F[k].forEach(n=>m[n]=k); m.__order=Object.keys(F); return m; })();
+const SEASON_OF=(()=>{ const S={
+  'Year-round':['Great Horned Owl','Eastern Screech-Owl','Mourning Dove','Rock Pigeon','Canada Goose','Mallard','Red-tailed Hawk','Blue Jay','American Crow','Fish Crow',
+    'Northern Cardinal','Black-capped Chickadee','Tufted Titmouse','American Robin','European Starling','House Sparrow','House Finch','American Goldfinch','Northern Mockingbird',
+    'Downy Woodpecker','Red-bellied Woodpecker','White-breasted Nuthatch','Song Sparrow','Carolina Wren','Northern Flicker','Cedar Waxwing'],
+  'Summer':['Red-winged Blackbird','Gray Catbird','House Wren','Common Grackle','Baltimore Oriole','Wood Thrush','Veery','Eastern Kingbird','Great Crested Flycatcher',
+    'Eastern Wood-Pewee','Warbling Vireo','Red-eyed Vireo','Yellow Warbler','Brown-headed Cowbird','Black-crowned Night-Heron','Blue-gray Gnatcatcher','Chipping Sparrow','Belted Kingfisher'],
+  'Winter':['White-throated Sparrow','Dark-eyed Junco','Red-breasted Nuthatch','Golden-crowned Kinglet','Brown Creeper','Yellow-rumped Warbler','Barred Owl','Hermit Thrush'],
+  'Passing through':['Black-throated Blue Warbler','Black-throated Green Warbler','Northern Parula','American Redstart','Black-and-white Warbler','Magnolia Warbler','Blackpoll Warbler',
+    'Pine Warbler','Ovenbird','Common Yellowthroat','Scarlet Tanager','Rose-breasted Grosbeak','Indigo Bunting','Ruby-crowned Kinglet','Brown Thrasher','Swamp Sparrow',
+    'Purple Finch','Eastern Towhee','Eastern Phoebe','American Woodcock'],
+  }; const m={}; for(const k in S) S[k].forEach(n=>m[n]=k); m.__order=Object.keys(S); return m; })();
+function sizeOf(name){
+  const [k,o]=ART_KIND[name]||['song',{}], s=o.size||1;
+  if(['goose','duck','heron','hawk'].includes(k)||(k==='owl'&&s>=1)||(k==='song'&&s>=1.2)) return 'Large';
+  if(['dove','kingfisher','woodcock'].includes(k)||k==='owl'||(k==='wood'&&s>=1)||(k==='song'&&s>=.95)) return 'Medium';
+  return 'Small';
+}
+const GROUPINGS={
+  song:{label:'Song type', blurb:'Grouped by how they sing', order:TYPES.map(t=>t[1].charAt(0).toUpperCase()+t[1].slice(1)), of:sp=>{ const t=TYPES.find(x=>x[0]===sp.type)[1]; return t.charAt(0).toUpperCase()+t.slice(1); }},
+  family:{label:'Family', blurb:'Grouped by family tree', order:FAMILY_OF.__order, of:sp=>FAMILY_OF[sp.name]||'Other'},
+  season:{label:'Season', blurb:'Grouped by when they are in Central Park', order:SEASON_OF.__order, of:sp=>SEASON_OF[sp.name]||'Passing through'},
+  habitat:{label:'Habitat', blurb:'Grouped by where in the park they live', order:['Woodland','Water’s edge','Open lawn'], of:sp=>WATER_BIRDS.includes(sp.name)?'Water’s edge':LAWN_BIRDS.includes(sp.name)?'Open lawn':'Woodland'},
+  time:{label:'Time of day', blurb:'Grouped by when they sing most', order:['Dawn chorus','Dawn & dusk','All day','Night'], of:sp=>({dawn:'Dawn chorus',twilight:'Dawn & dusk',day:'All day',night:'Night'})[activityPattern(sp)]},
+  size:{label:'Size', blurb:'Grouped by body size', order:['Small','Medium','Large'], of:sp=>sizeOf(sp.name)},
+};
+const SV={key:'song', built:false, items:[]};
+function buildSort(){
+  const board=document.getElementById('sortboard'); board.innerHTML=''; SV.items=[];
+  SPECIES.forEach((sp,i)=>{ const d=document.createElement('button'); d.className='sb'; d.setAttribute('aria-label',sp.name);
+    d.innerHTML=birdSVG(sp.name); board.appendChild(d); SV.items.push({sp,el:d,i});
+    d.addEventListener('mouseenter',()=>sortCard(sp,d)); d.addEventListener('mouseleave',()=>{ document.getElementById('sortcard').style.opacity=0; });
+    d.addEventListener('click',()=>{ SV.from=true; openListen(sp.real||standIn(sp)); }); });
+  const tg=document.getElementById('sorttoggles'); tg.innerHTML=Object.entries(GROUPINGS).map(([k,g])=>`<button data-k="${k}">${g.label}</button>`).join('<span>·</span>');
+  tg.querySelectorAll('button').forEach(b=>b.onclick=()=>layoutSort(b.dataset.k));
+  SV.built=true;
+}
+function layoutSort(key){
+  SV.key=key; const G=GROUPINGS[key];
+  document.querySelectorAll('#sorttoggles button').forEach(b=>b.classList.toggle('cur',b.dataset.k===key));
+  document.getElementById('sortblurb').textContent=G.blurb;
+  const groups=G.order.map(n=>({n,items:[]})); SV.items.forEach(it=>{ const g=groups.find(x=>x.n===G.of(it.sp))||groups[groups.length-1]; g.items.push(it); });
+  groups.forEach(g=>g.items.sort((a,b)=>(a.sp.hz||0)-(b.sp.hz||0)));          // lowest voice at the bottom of each stack
+  // dot chart: one dot per species, stacked upward from a baseline, with a species-count scale
+  const W=innerWidth, H=innerHeight, left=Math.max(110,W*.075), right=W-Math.max(60,W*.04);
+  const base=H-205, top=Math.max(200,H*.24), maxN=Math.max(...groups.map(g=>g.items.length));
+  const step=Math.max(26,Math.ceil(maxN/5)*5), unit=(base-top)/Math.ceil(maxN/5)/5;   // px per species
+  const k=groups.length, colW=(right-left)/k, d=Math.min(34,(base-top)/15*.78), gx=d*1.16;
+  let per=Math.max(1,Math.ceil(d/.8/unit)); while(per>1 && per*gx>colW*.92) per--; const rowU=unit*per;   // tall stacks go two-wide so the dots stay readable
+  const heads=document.getElementById('sortheads'); heads.innerHTML='';
+  let ax=`<div class="axis" style="left:${left-14}px;top:${top-unit*.5}px;height:${base-top+unit*.5}px"></div><div class="baseline" style="left:${left-14}px;width:${right-left+14}px;top:${base}px"></div>`;
+  const maxTick=Math.ceil(maxN/5)*5;
+  for(let t=0;t<=maxTick;t+=5){ const y=base-t*unit; ax+=`<div class="tick" style="left:${left-20}px;top:${y}px"><span>${t}</span></div>`; if(t>0) ax+=`<div class="grid" style="left:${left-14}px;width:${right-left+14}px;top:${y}px"></div>`; }
+  ax+=`<div class="ylab" style="left:${left-78}px;top:${(top+base)/2}px">Number of species</div>`;
+  groups.forEach((g,gi)=>{ const cx=left+colW*(gi+.5);
+    ax+= k>7 ? `<div class="xl diag" style="left:${cx+4}px;top:${base+10}px">${g.n}</div>` : `<div class="xl" style="left:${cx}px;top:${base+12}px;width:${Math.max(70,colW-8)}px">${g.n}</div>`;
+    g.items.forEach((it,j)=>{ const y=base-(Math.floor(j/per)+.5)*rowU, x=cx+((j%per)-(per-1)/2)*gx;
+      it.el.style.width=it.el.style.height=d+'px';
+      it.el.style.transitionDelay=(Math.random()*.35).toFixed(2)+'s';
+      it.el.style.translate=`${x-d/2}px ${y-d/2}px`; }); });
+  ax+= k>7 ? '' : `<div class="xtitle" style="left:${(left+right)/2}px;top:${base+56}px">${G.label}</div>`;
+  heads.innerHTML=ax;
+}
+function sortCard(sp,el){
+  const c=document.getElementById('sortcard'), r=el.getBoundingClientRect(), hz=sp.hz;
+  c.innerHTML=`<p class="t">${sp.name}</p><p class="s">${FAMILY_OF[sp.name]} · ${SEASON_OF[sp.name]||''} · ~${(hz/1000).toFixed(1)} kHz</p><p class="m">Click to hear</p>`;
+  c.style.left=Math.max(150,Math.min(innerWidth-150,r.left+r.width/2))+'px'; c.style.top=(r.top+r.height/2-r.width*1.05-10)+'px'; c.style.opacity=1;
+}
+function openSort(){
+  if(mode==='map') closeMap(true);
+  hover=null; hoverFlock=null; lab.style.opacity=0;
+  mode='sort'; document.body.classList.add('sorting'); document.getElementById('home').classList.add('hidden');
+  const S=document.getElementById('sortview'); S.classList.remove('hidden'); S.classList.add('on');
+  if(!SV.built) buildSort();
+  // birds fly in from the left like the flock, then settle into groups
+  SV.items.forEach(it=>{ it.el.style.transition='none'; it.el.style.translate=`${-80-Math.random()*200}px ${innerHeight*(.4+Math.random()*.5)}px`; });
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ SV.items.forEach(it=>it.el.style.transition=''); layoutSort(SV.key); }));
+  setNav('sort');
+}
+function closeSort(){
+  document.body.classList.remove('sorting'); const S=document.getElementById('sortview'); S.classList.add('hidden'); S.classList.remove('on');
+  document.getElementById('sortcard').style.opacity=0;
+}
+addEventListener('resize',()=>{ if(mode==='sort') layoutSort(SV.key); });
+
+/* ---------- boot ---------- */
+function prepare(){
+  BIRDS.forEach(b=>{ seed=b.id.length*131+7; const raw=normalize(SYNTH[b.id]()); b.raw=raw; b.an=analyse(raw); });
+}
+function layoutAll(){ sizeCanvas(); paintSky(); if(mode==='home'){ placeFlocks(); buildBirds(); birds.forEach(p=>{p.x=p.hx;p.y=p.hy;p.a=p.fa;p.vx=p.vy=0;p.delay=-20;}); } }
+document.getElementById('enter').onclick=()=>{
+  try{ window.audioCtx=new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); }catch(e){}
+  document.getElementById('intro').classList.add('hidden');
+  mode='home'; placeFlocks(); buildBirds(); tEnter=performance.now(); trailsOn=true;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){ birds.forEach(p=>{p.x=p.hx;p.y=p.hy;p.a=p.fa;p.delay=-20;}); tEnter-=8000; }
+  setTimeout(()=>{ document.getElementById('home').classList.remove('hidden'); document.getElementById('nav').classList.remove('hidden'); },900);
+};
+prepare(); layoutAll(); requestAnimationFrame(frame);
+let rt; addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(layoutAll,200); });
+</script>
+</body>
+</html>
